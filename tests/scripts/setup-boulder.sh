@@ -1,11 +1,11 @@
 #!/bin/bash
-sed -x
+set -x
 env
 eval "$(gimme 1.5)"
 export GOPATH=~/build/go
 export PATH=$PATH:$GOPATH/bin
 mkdir ~/build/letsencrypt
-git clone git://github.com/letsencrypt/boulder.git --branch release-2015-12-07
+git clone git://github.com/letsencrypt/boulder.git --branch release-2015-12-07 ~/build/letsencrypt/boulder
 mkdir -p $GOPATH/src/github.com/letsencrypt/
 ln -s ~/build/letsencrypt/boulder $GOPATH/src/github.com/letsencrypt/boulder
 cd ~/build/letsencrypt/boulder
