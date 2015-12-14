@@ -7,7 +7,7 @@ python:
 sudo: required
 dist: trusty
 script: py.test
-before_script:
+after_install:
   - sudo tests/scripts/setup-dependencies.sh
   - tests/scripts/setup-boulder.sh
 after_script: cat ~/build/go//src/github.com/letsencrypt/boulder/nohup.out

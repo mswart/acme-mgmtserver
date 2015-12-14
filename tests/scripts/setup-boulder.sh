@@ -9,8 +9,7 @@ cd $GOPATH/src/github.com/letsencrypt/boulder
 sed -i -e 's/root@tcp/boulder:test@tcp/' policy/_db/dbconf.yml sa/_db/dbconf.yml
 sed -i -e 's/-u root/-u boulder -ptest/' test/create_db.sh
 ./test/setup.sh
-go install -xv ./...
-python2.7 ./start.py
+go install -x -v ./...
 nohup python2.7 start.py &
 sleep 2
 cat nohup.out
