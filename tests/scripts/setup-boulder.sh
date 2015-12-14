@@ -13,3 +13,4 @@ sed -i -e 's/root@tcp/boulder:test@tcp/' policy/_db/dbconf.yml sa/_db/dbconf.yml
 sed -i -e 's/-u root/-u boulder -ptest/' test/create_db.sh
 ./test/setup.sh
 nohup python2.7 start.py &
+cat nohup.out
