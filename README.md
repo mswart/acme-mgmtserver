@@ -1,6 +1,9 @@
 ACME Management Server
 ======================
 
+[![Build Status](http://img.shields.io/travis/mswart/acme-mgmtserver/master.svg)](https://travis-ci.org/mswart/acme-mgmtserver)
+
+
 [LetsEncrypt](https://letsencrypt.org) supports issueing free certificates by communication via ACME - the Automatically Certificate Management Evaluation protocol.
 
 This tools is yet another ACME client ... but as a client/server model.
