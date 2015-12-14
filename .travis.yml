@@ -7,3 +7,7 @@ python:
 sudo: required
 dist: trusty
 script: py.test
+before_script:
+  - sudo tests/scripts/setup-dependencies.sh
+  - tests/scripts/setup-boulder.sh
+after_script: cat nohup.out
