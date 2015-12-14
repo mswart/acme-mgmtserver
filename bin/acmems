@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+import sys
+import os
+import argparse
+from threading import Thread
+
+# adjust import path
+# A. executed from source repository; source for package in ..
+parent = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if os.path.isdir(os.path.join(parent, 'acmems')):
+    sys.path.insert(0, parent)
+# B. acme mgmtserver is installed via package manager ..
+elif os.path.isdir('/usr/share/acme-mgmtserver'):
+    sys.path.insert(0, '/usr/share/acme-mgmtserver')
+
+from acmems.config import Configurator
+from acmems.manager import ACMEManager
+from acmems.server import ThreadedACMEServerByType, ACMEAbstractHandler, ACMEHTTPHandler, ACMEMgmtHandler
+from acmems.version import STRING as VERSIONSTRING
+
+
+class BooleanAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, values if values is not None else True)
+
+
+parser = argparse.ArgumentParser(description='Basic Python Server to execute'
+                                 ' ACME instead of dump clients')
+parser.add_argument('configs', type=argparse.FileType('r'), nargs='+',
+                    help='file path to configuration file')
+# parser.add_argument('--account-dir', help='file path to configuration file')
+# parser.add_argument('--mgmt-port', type=int, default=1313, help='port for mgmt traffic')
+# parser.add_argument('--http-port', type=int, default=1380, help='port for mgmt traffic')
+parser.add_argument('--version', action='version', version='%(prog)s ' + VERSIONSTRING)
+
+args = parser.parse_args()
+
+config = Configurator(*args.configs)
+
+
+print('load account and init acme client ... ', end='')
+ACMEAbstractHandler.manager = ACMEManager(config)
+print('done')
+
+for http_listen in config.http_listeners:
+    http_service = ThreadedACMEServerByType[http_listen[0]](http_listen[4], ACMEHTTPHandler)
+    Thread(target=http_service.serve_forever,
+           daemon=True,
+           name='http service to server validation request').start()
+
+
+mgmt_services = []
+mgmt_threads = []
+
+for mgmt_listen in config.mgmt_listeners:
+    mgmt_service = ThreadedACMEServerByType[mgmt_listen[0]](mgmt_listen[4], ACMEMgmtHandler)
+    mgmt_services.append(mgmt_service)
+    thread = Thread(target=mgmt_service.serve_forever,
+                    name='http service to server validation request')
+    mgmt_threads.append(thread)
+    thread.start()
+
+print('running')
+
+finished = 0
+try:
+    for thread, service in zip(list(mgmt_threads), list(mgmt_services)):
+        thread.join()
+        service.shutdown()
+        finished += 1
+except KeyboardInterrupt:
+    for mgmt_service in mgmt_services[finished:]:
+        mgmt_service.shutdown()
