@@ -6,9 +6,9 @@ echo 'deb http://mirror2.hs-esslingen.de/mariadb/repo/10.0/ubuntu trusty main' >
 wget https://www.rabbitmq.com/rabbitmq-signing-key-public.asc -O - | apt-key add -
 echo 'deb http://www.rabbitmq.com/debian/ testing main' > /etc/apt/sources.list.d/rabbitmq.list
 # update package list
-apt-get update -qq
+apt-get update
 # install packages
-apt-get install -qq libltdl3-dev mariadb-server rabbitmq-server python2.7
+apt-get install libltdl3-dev mariadb-server rabbitmq-server python2.7
 # configure mariadb
 # todo
 mysql -u root <<EOF
