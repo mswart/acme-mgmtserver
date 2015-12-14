@@ -1,5 +1,7 @@
 #!/bin/bash
 sed -x
+env
+eval "$(gimme 1.5)"
 export GOPATH=~/build/go
 export PATH=$PATH:$GOPATH/bin
 mkdir ~/build/letsencrypt
