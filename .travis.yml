@@ -6,3 +6,4 @@ python:
   - '3.5'
 sudo: required
 dist: trusty
+script: py.test
