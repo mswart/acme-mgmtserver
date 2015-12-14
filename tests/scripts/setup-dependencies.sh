@@ -8,7 +8,7 @@ echo 'deb http://www.rabbitmq.com/debian/ testing main' > /etc/apt/sources.list.
 # update package list
 apt-get update
 # install packages
-apt-get install libltdl3-dev mariadb-server rabbitmq-server python2.7
+apt-get install libltdl-dev mariadb-server mariadb-server-10.0 rabbitmq-server python2.7
 # configure mariadb
 # todo
 mysql -u root <<EOF
