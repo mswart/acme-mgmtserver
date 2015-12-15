@@ -15,7 +15,7 @@ def M(configcontent, connect=False):
     return manager.ACMEManager(c, connect=connect)
 
 
-def MA(dir):
+def MA(dir, connect=True):
     return M('''[account]
         dir = {}
         acme-server = http://127.0.0.1:4000/directory
@@ -23,7 +23,7 @@ def MA(dir):
         [auth "all"]
         all=yes
         domain=*
-        '''.format(dir), connect=True)
+        '''.format(dir), connect=connect)
 
 
 def gencsrpem(domains, key):

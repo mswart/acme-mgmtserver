@@ -54,6 +54,7 @@ def test_override_key(tmpdir):
 
 ### register
 
+@pytest.mark.boulder
 def test_register(tmpdir):
     m = M('''[account]
         dir = {}
@@ -72,6 +73,7 @@ def test_register(tmpdir):
 
 ### refresh registration
 
+@pytest.mark.boulder
 def test_refresh_registration_for_unknown_key():
     m = M('''[account]
         dir = tests/support/valid
@@ -88,6 +90,7 @@ def test_refresh_registration_for_unknown_key():
 
 ### domain verificateion
 
+@pytest.mark.boulder
 def test_auto_domain_verification(registered_account_dir, http_server):
     server.ACMEAbstractHandler.manager = MA(registered_account_dir)
     authzrs = server.ACMEAbstractHandler.manager.acquire_domain_validations(['www.example.com', 'mail.example.com'])
@@ -98,6 +101,7 @@ def test_auto_domain_verification(registered_account_dir, http_server):
     assert authzrs[1].body.identifier.value == 'mail.example.com'
 
 
+@pytest.mark.boulder
 def test_invalid_domain_verification(registered_account_dir, http_server):
     m = server.ACMEAbstractHandler.manager = MA(registered_account_dir)
     with pytest.raises(exceptions.InvalidDomainName) as e:
@@ -107,6 +111,7 @@ def test_invalid_domain_verification(registered_account_dir, http_server):
 
 ### certificate creation
 
+@pytest.mark.boulder
 def test_certificate_creation(registered_account_dir, http_server, ckey):
     domains = ['www.example{}.org'.format(os.getpid()), 'mail.example{}.org'.format(os.getpid())]
     csr = gencsr(domains, ckey)
@@ -117,6 +122,7 @@ def test_certificate_creation(registered_account_dir, http_server, ckey):
     assert len(certs) == 2
 
 
+@pytest.mark.boulder
 def test_rate_limit_on_certificate_creation(registered_account_dir, http_server, ckey):
     domains = ['example-rate{}.org'.format(os.getpid())]
     csr = gencsr(domains, ckey)

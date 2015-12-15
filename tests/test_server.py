@@ -13,21 +13,22 @@ from acmems import server, auth
 #### http server
 
 
-def test_for_404_for_unknown_requests(registered_account_dir, http_server):
-    server.ACMEAbstractHandler.manager = MA(registered_account_dir)
+def test_for_404_for_unknown_requests(http_server):
+    server.ACMEAbstractHandler.manager = MA('tests/support/valid/', connect=False)
     with pytest.raises(urllib.error.HTTPError):
         urllib.request.urlopen('http://127.0.0.1:5002/file_not_found')
 
 
 #### mgmt server
 
-def test_mgmt_for_404_for_unknown_requests(registered_account_dir, mgmt_server, ckey):
-    server.ACMEAbstractHandler.manager = MA(registered_account_dir)
+def test_mgmt_for_404_for_unknown_requests(mgmt_server, ckey):
+    server.ACMEAbstractHandler.manager = MA('tests/support/valid/', connect=False)
     csr = gencsrpem(['test.example.org'], ckey)
     with pytest.raises(urllib.error.HTTPError):
         urllib.request.urlopen('http://127.0.0.1:{}/signing'.format(mgmt_server.server_port), csr)
 
 
+@pytest.mark.boulder
 def test_mgmt_complete_multiple_domains(registered_account_dir, http_server, mgmt_server, ckey):
     server.ACMEAbstractHandler.manager = MA(registered_account_dir)
     domains = ['www.fullexample{}.org'.format(os.getpid()), 'mail.fullexample{}.org'.format(os.getpid())]
@@ -59,6 +60,7 @@ def test_mgmt_complete_multiple_domains(registered_account_dir, http_server, mgm
         assert sorted(dns_names) == sorted(domains)
 
 
+@pytest.mark.boulder
 def test_mgmt_complete_one_domain(registered_account_dir, http_server, mgmt_server, ckey):
     server.ACMEAbstractHandler.manager = MA(registered_account_dir)
     domains = ['debug.fullexample{}.org'.format(os.getpid())]
