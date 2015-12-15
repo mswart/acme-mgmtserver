@@ -1,6 +1,7 @@
 import warnings
 from fnmatch import fnmatch
 import hmac
+import hashlib
 
 from OpenSSL import crypto
 import pyasn1.type
@@ -60,7 +61,8 @@ class HmacAuthMethod():
 
     def parse(self, option, value):
         if option == 'hmac_type':
-            self.hmac = value
+            self.name = value
+            self.hmac = getattr(hashlib, self.name)
         elif option == 'hmac_key':
             self.key = value.encode('utf-8')
 
@@ -76,7 +78,7 @@ class HmacAuthMethod():
         name, opts = self.parse_authentification_header(processor)
         if name != 'hmac':
             return False
-        if opts.get('name', None) != self.hmac:
+        if opts.get('name', None) != self.name:
             return False
         if 'hash' not in opts:
             return False

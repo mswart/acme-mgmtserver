@@ -3,6 +3,7 @@ import urllib.request
 import urllib.error
 import http.client
 import hmac
+import hashlib
 
 import pytest
 from pyasn1.codec.der import decoder
@@ -98,7 +99,7 @@ def test_mgmt_reject_correct_ip_but_wrong_hmac_key(http_server, mgmt_server, cke
         ''')
     csr = gencsrpem(['test.example.org'], ckey)
     request = urllib.request.Request('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
-    hash = hmac.new(b'tXEuu1TEpg6Q31oJDMuGNQKVm', csr, digestmod='sha256').hexdigest()
+    hash = hmac.new(b'tXEuu1TEpg6Q31oJDMuGNQKVm', csr, digestmod=hashlib.sha256).hexdigest()
     request.add_header('Authentication', 'hmac name=sha256, hash={}'.format(hash))
     with pytest.raises(urllib.error.HTTPError) as e:
         open127001.open(request)
@@ -119,7 +120,7 @@ def test_mgmt_reject_correct_ip_but_wrong_hmac_type(http_server, mgmt_server, ck
         ''')
     csr = gencsrpem(['test.example.org'], ckey)
     request = urllib.request.Request('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
-    hash = hmac.new(b'oiFDiu1uEM7xSzdUnQdTbyYAr', csr, digestmod='sha384').hexdigest()
+    hash = hmac.new(b'oiFDiu1uEM7xSzdUnQdTbyYAr', csr, digestmod=hashlib.sha384).hexdigest()
     request.add_header('Authentication', 'hmac name=sha384, hash={}'.format(hash))
     with pytest.raises(urllib.error.HTTPError) as e:
         open127001.open(request)
@@ -144,7 +145,7 @@ def test_mgmt_reject_to_long_csr(registered_account_dir, http_server, mgmt_serve
     csr = gencsrpem(domains, ckey)
     assert len(csr) > 512
     request = urllib.request.Request('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
-    hash = hmac.new(b'oiFDiu1uEM7xSzdUnQdTbyYAr', csr, digestmod='sha256').hexdigest()
+    hash = hmac.new(b'oiFDiu1uEM7xSzdUnQdTbyYAr', csr, digestmod=hashlib.sha256).hexdigest()
     request.add_header('Authentication', 'hmac name=sha256, hash={}'.format(hash))
     with pytest.raises(urllib.error.HTTPError) as e:
         open127001.open(request)
@@ -168,7 +169,7 @@ def test_mgmt_reject_invalid_csr(registered_account_dir, http_server, mgmt_serve
     csr = gencsrpem(domains, ckey)
     csr = csr[340:] + csr[:340]
     request = urllib.request.Request('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
-    hash = hmac.new(b'oiFDiu1uEM7xSzdUnQdTbyYAr', csr, digestmod='sha256').hexdigest()
+    hash = hmac.new(b'oiFDiu1uEM7xSzdUnQdTbyYAr', csr, digestmod=hashlib.sha256).hexdigest()
     request.add_header('Authentication', 'hmac name=sha256, hash={}'.format(hash))
     with pytest.raises(urllib.error.HTTPError) as e:
         open127001.open(request)
@@ -191,7 +192,7 @@ def test_mgmt_complete_multiple_domains(registered_account_dir, http_server, mgm
     domains = ['www.fullexample{}.org'.format(os.getpid()), 'mail.fullexample{}.org'.format(os.getpid())]
     csr = gencsrpem(domains, ckey)
     request = urllib.request.Request('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
-    hash = hmac.new(b'oiFDiu1uEM7xSzdUnQdTbyYAr', csr, digestmod='sha256').hexdigest()
+    hash = hmac.new(b'oiFDiu1uEM7xSzdUnQdTbyYAr', csr, digestmod=hashlib.sha256).hexdigest()
     request.add_header('Authentication', 'hmac name=sha256, hash={}'.format(hash))
     response = urllib.request.urlopen(request)
     certs = response.read().split(b'\n\n')

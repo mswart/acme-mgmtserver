@@ -1,5 +1,6 @@
 import io
 import hmac
+import hashlib
 
 import pytest
 
@@ -11,7 +12,7 @@ def args(ckey, client_ip, *domains, hmac_type=None, hmac_key=None, **headers):
     csrpem = gencsrpem(domains, ckey)
     headers['Content-Length'] = len(csrpem)
     if hmac_key and hmac_type:
-        hash = hmac.new(hmac_key, csrpem, digestmod=hmac_type).hexdigest()
+        hash = hmac.new(hmac_key, csrpem, digestmod=getattr(hashlib, hmac_type)).hexdigest()
         headers['Authentication'] = 'hmac name={}, hash={}'.format(hmac_type, hash)
     return ((client_ip, 3405), headers, io.BytesIO(csrpem))
 
