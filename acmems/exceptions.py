@@ -51,3 +51,13 @@ class InvalidDomainName(AcmeException):
     def __str__(self):
         return '{} is not a domain name that the ACME server can issue ' \
             'a certificate for: {}'.format(self.domain, self.detail)
+
+
+class PayloadToLarge(AcmeException):
+    def __init__(self, size, allowed):
+        self.size = size
+        self.allowed = allowed
+
+
+class PayloadInvalid(AcmeException):
+    pass

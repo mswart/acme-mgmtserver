@@ -195,6 +195,43 @@ def test_unix_socket_as_mgmt_listener():
     assert 'unix socket' in str(e)
 
 
+### [listeners] max size
+
+def test_default_max_size_options():
+    p = parse('''
+        [account]
+        [listeners]
+        ''')
+    assert p.max_size == 4096
+
+
+def test_max_size_options_in_bytes():
+    p = parse('''
+        [account]
+        [listeners]
+        max-size = 2394
+        ''')
+    assert p.max_size == 2394
+
+
+def test_max_size_options_in_kbytes():
+    p = parse('''
+        [account]
+        [listeners]
+        max-size = 4k
+        ''')
+    assert p.max_size == 4096
+
+
+def test_max_size_options_in_mbytes():
+    p = parse('''
+        [account]
+        [listeners]
+        max-size = 1m
+        ''')
+    assert p.max_size == 1024 * 1024
+
+
 ### [listeners] unknown option
 
 def test_warning_on_unknown_listeners_option():

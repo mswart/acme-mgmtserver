@@ -43,7 +43,7 @@ class UnusedSectionWarning(ConfigurationWarning):
 
 class Configurator():
     def __init__(self, *configs):
-        self.auth = Authenticator()
+        self.auth = Authenticator(self)
         for config in configs:
             self.parse(config)
 
@@ -128,8 +128,17 @@ class Configurator():
     def parser_listeners_config(self, config):
         self.http_listeners = None
         self.mgmt_listeners = None
+        self.max_size = None
         for option, value in config:
-            if option == 'http':
+            if option == 'max-size':
+                suffixes = {'k': 1024, 'm': 1024*1024}
+                for suffix, mul in suffixes.items():
+                    if value.endswith(suffix):
+                        self.max_size = int(value[:len(suffix)]) * mul
+                        break
+                else:
+                    self.max_size = int(value)
+            elif option == 'http':
                 if self.http_listeners is None:
                     self.http_listeners = []
                 if value == '':  # disable listener
@@ -154,6 +163,8 @@ class Configurator():
             else:
                 warnings.warn('Option unknown [{}]{} = {}'.format('listeners', option, value),
                               UnusedOptionWarning, stacklevel=2)
+        if self.max_size is None:
+            self.max_size = 4096
         if self.http_listeners is None:
             self.http_listeners = socket.getaddrinfo('0.0.0.0', 1380, proto=socket.IPPROTO_TCP) \
                 + socket.getaddrinfo('::', 1380, proto=socket.IPPROTO_TCP)

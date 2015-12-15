@@ -2,6 +2,7 @@ import os
 import urllib.request
 import urllib.error
 import http.client
+import hmac
 
 import pytest
 from pyasn1.codec.der import decoder
@@ -56,23 +57,23 @@ def test_mgmt_reject_sign_with_wrong_ip(http_server, mgmt_server, ckey):
         acme-server = http://127.0.0.1:4000/directory
         [listeners]
         [auth "localhost"]
-        ip = 127.0.0.0/32
+        ip = 127.0.0.0/24
         domain=*
         ''')
     csr = gencsrpem(['test.example.org'], ckey)
     with pytest.raises(urllib.error.HTTPError) as e:
         open127801.open('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
-    assert e.value.code == 401
+    assert e.value.code == 403
 
 
-def test_mgmt_reject_correct_ip_but_missing_sign_with_wrong_ip(http_server, mgmt_server, ckey):
+def test_mgmt_reject_correct_ip_but_missing_sign(http_server, mgmt_server, ckey):
     server.ACMEAbstractHandler.manager = M('''
         [account]
         dir = tests/support/valid
         acme-server = http://127.0.0.1:4000/directory
         [listeners]
         [auth "localhost"]
-        ip = 127.0.0.0/32
+        ip = 127.0.0.0/24
         hmac_type = sha256
         hmac_key = oiFDiu1uEM7xSzdUnQdTbyYAr
         domain=*
@@ -80,15 +81,119 @@ def test_mgmt_reject_correct_ip_but_missing_sign_with_wrong_ip(http_server, mgmt
     csr = gencsrpem(['test.example.org'], ckey)
     with pytest.raises(urllib.error.HTTPError) as e:
         open127001.open('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
-    assert e.value.code == 401
+    assert e.value.code == 403
+
+
+def test_mgmt_reject_correct_ip_but_wrong_hmac_key(http_server, mgmt_server, ckey):
+    server.ACMEAbstractHandler.manager = M('''
+        [account]
+        dir = tests/support/valid
+        acme-server = http://127.0.0.1:4000/directory
+        [listeners]
+        [auth "localhost"]
+        ip = 127.0.0.0/24
+        hmac_type = sha256
+        hmac_key = oiFDiu1uEM7xSzdUnQdTbyYAr
+        domain=*
+        ''')
+    csr = gencsrpem(['test.example.org'], ckey)
+    request = urllib.request.Request('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
+    hash = hmac.new(b'tXEuu1TEpg6Q31oJDMuGNQKVm', csr, digestmod='sha256').hexdigest()
+    request.add_header('Authentication', 'hmac name=sha256, hash={}'.format(hash))
+    with pytest.raises(urllib.error.HTTPError) as e:
+        open127001.open(request)
+    assert e.value.code == 403
+
+
+def test_mgmt_reject_correct_ip_but_wrong_hmac_type(http_server, mgmt_server, ckey):
+    server.ACMEAbstractHandler.manager = M('''
+        [account]
+        dir = tests/support/valid
+        acme-server = http://127.0.0.1:4000/directory
+        [listeners]
+        [auth "localhost"]
+        ip = 127.0.0.0/24
+        hmac_type = sha256
+        hmac_key = oiFDiu1uEM7xSzdUnQdTbyYAr
+        domain=*
+        ''')
+    csr = gencsrpem(['test.example.org'], ckey)
+    request = urllib.request.Request('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
+    hash = hmac.new(b'oiFDiu1uEM7xSzdUnQdTbyYAr', csr, digestmod='sha384').hexdigest()
+    request.add_header('Authentication', 'hmac name=sha384, hash={}'.format(hash))
+    with pytest.raises(urllib.error.HTTPError) as e:
+        open127001.open(request)
+    assert e.value.code == 403
+
+
+@pytest.mark.boulder
+def test_mgmt_reject_to_long_csr(registered_account_dir, http_server, mgmt_server, ckey):
+    server.ACMEAbstractHandler.manager = M('''
+        [account]
+        dir = {}
+        acme-server = http://127.0.0.1:4000/directory
+        [listeners]
+        max-size = 512
+        [auth "localhost"]
+        ip = 127.0.0.0/24
+        hmac_type = sha256
+        hmac_key = oiFDiu1uEM7xSzdUnQdTbyYAr
+        domain=*
+        '''.format(registered_account_dir), connect=True)
+    domains = ['www.fullexample{}.org'.format(os.getpid()), 'mail.fullexample{}.org'.format(os.getpid())]
+    csr = gencsrpem(domains, ckey)
+    assert len(csr) > 512
+    request = urllib.request.Request('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
+    hash = hmac.new(b'oiFDiu1uEM7xSzdUnQdTbyYAr', csr, digestmod='sha256').hexdigest()
+    request.add_header('Authentication', 'hmac name=sha256, hash={}'.format(hash))
+    with pytest.raises(urllib.error.HTTPError) as e:
+        open127001.open(request)
+    assert e.value.code == 413
+
+
+@pytest.mark.boulder
+def test_mgmt_reject_invalid_csr(registered_account_dir, http_server, mgmt_server, ckey):
+    server.ACMEAbstractHandler.manager = M('''
+        [account]
+        dir = {}
+        acme-server = http://127.0.0.1:4000/directory
+        [listeners]
+        [auth "localhost"]
+        ip = 127.0.0.0/24
+        hmac_type = sha256
+        hmac_key = oiFDiu1uEM7xSzdUnQdTbyYAr
+        domain=*
+        '''.format(registered_account_dir), connect=True)
+    domains = ['www.fullexample{}.org'.format(os.getpid()), 'mail.fullexample{}.org'.format(os.getpid())]
+    csr = gencsrpem(domains, ckey)
+    csr = csr[340:] + csr[:340]
+    request = urllib.request.Request('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
+    hash = hmac.new(b'oiFDiu1uEM7xSzdUnQdTbyYAr', csr, digestmod='sha256').hexdigest()
+    request.add_header('Authentication', 'hmac name=sha256, hash={}'.format(hash))
+    with pytest.raises(urllib.error.HTTPError) as e:
+        open127001.open(request)
+    assert e.value.code == 415
 
 
 @pytest.mark.boulder
 def test_mgmt_complete_multiple_domains(registered_account_dir, http_server, mgmt_server, ckey):
-    server.ACMEAbstractHandler.manager = MA(registered_account_dir)
+    server.ACMEAbstractHandler.manager = M('''
+        [account]
+        dir = {}
+        acme-server = http://127.0.0.1:4000/directory
+        [listeners]
+        [auth "localhost"]
+        ip = 127.0.0.0/24
+        hmac_type = sha256
+        hmac_key = oiFDiu1uEM7xSzdUnQdTbyYAr
+        domain=*
+        '''.format(registered_account_dir), connect=True)
     domains = ['www.fullexample{}.org'.format(os.getpid()), 'mail.fullexample{}.org'.format(os.getpid())]
     csr = gencsrpem(domains, ckey)
-    response = urllib.request.urlopen('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
+    request = urllib.request.Request('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
+    hash = hmac.new(b'oiFDiu1uEM7xSzdUnQdTbyYAr', csr, digestmod='sha256').hexdigest()
+    request.add_header('Authentication', 'hmac name=sha256, hash={}'.format(hash))
+    response = urllib.request.urlopen(request)
     certs = response.read().split(b'\n\n')
     assert len(certs) == 2
     x509 = [crypto.load_certificate(crypto.FILETYPE_PEM, cert) for cert in certs]

@@ -8,6 +8,8 @@ from pyasn1.codec.der import decoder
 from ndg.httpsclient.subj_alt_name import SubjectAltName as BaseSubjectAltName
 from IPy import IP
 
+from acmems import exceptions
+
 
 ### Note: This is a slightly bug-fixed version of same from ndg-httpsclient.
 class SubjectAltName(BaseSubjectAltName):
@@ -21,7 +23,8 @@ class SubjectAltName(BaseSubjectAltName):
 
 
 class Authenticator():
-    def __init__(self):
+    def __init__(self, config=None):
+        self.config = config
         self.blocks = []
 
     def parse_block(self, name, options):
@@ -59,7 +62,7 @@ class HmacAuthMethod():
         if option == 'hmac_type':
             self.hmac = value
         elif option == 'hmac_key':
-            self.key = value
+            self.key = value.encode('utf-8')
 
     def parse_authentification_header(self, processor):
         if 'Authentication' not in processor.headers:
@@ -71,7 +74,6 @@ class HmacAuthMethod():
 
     def possible(self, processor):
         name, opts = self.parse_authentification_header(processor)
-        print(name, opts)
         if name != 'hmac':
             return False
         if opts.get('name', None) != self.hmac:
@@ -115,6 +117,7 @@ class Block():
             return False
         for method in self.methods:
             if not method.possible(processor):
+                print('block {} excluded by {}'.format(self.name, method.__class__.__name__))
                 return False
         return True
 
@@ -185,7 +188,10 @@ class Processor():
         if not possible_blocks:
             return False
         # 2. process CSR
-        self.read_and_parse_csr()
+        try:
+            self.read_and_parse_csr()
+        except crypto.Error:
+            raise exceptions.PayloadInvalid()
         # 3. final check
         for block in possible_blocks:
             if block.check(self):
@@ -193,7 +199,10 @@ class Processor():
         return False
 
     def read_and_parse_csr(self):
-        self.csrpem = self.rfile.read(int(self.headers['Content-Length']))
+        content_length = int(self.headers['Content-Length'])
+        if self.auth.config and content_length > self.auth.config.max_size:
+            raise exceptions.PayloadToLarge(size=content_length, allowed=self.auth.config.max_size)
+        self.csrpem = self.rfile.read(content_length)
         self.csr = crypto.load_certificate_request(crypto.FILETYPE_PEM, self.csrpem)
         self.common_name = self.csr.get_subject().CN
         self.dns_names = []

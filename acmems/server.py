@@ -2,6 +2,8 @@ import socket
 import socketserver
 import http.server
 
+from acmems import exceptions
+
 
 class ThreadedACMEServerInet4(socketserver.ThreadingMixIn,
                               http.server.HTTPServer):
@@ -66,13 +68,17 @@ class ACMEMgmtHandler(ACMEAbstractHandler):
         try:
             with self.auth.process(self.client_address, self.headers, self.rfile) as p:
                 if not p.acceptable():
-                    self.send_error(401)
+                    self.send_error(403)
                     return
                 print(self.client_address, p.common_name, p.dns_names)
                 authzrs = self.manager.acquire_domain_validations(p.dns_names)
                 certs = '\n'.join(self.manager.issue_certificate(p.csr, authzrs))
                 print(certs)
                 self.send_data(certs)
+        except exceptions.PayloadToLarge:
+            self.send_error(413)
+        except exceptions.PayloadInvalid:
+            self.send_error(415)
         except Exception:
             self.send_error(500)
             raise

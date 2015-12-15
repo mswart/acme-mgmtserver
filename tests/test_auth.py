@@ -113,7 +113,7 @@ def test_accept_by_ip_and_hmac_with_correct_domain(ckey):
     a.parse_block('all', [
         ('ip', '192.0.2.0/24'),
         ('hmac_type', 'sha256'),
-        ('hmac_key', b'n55gzRK2UcGa8PqULwCmoeobbBw6pG'),
+        ('hmac_key', 'n55gzRK2UcGa8PqULwCmoeobbBw6pG'),
         ('domain', '*.example.org')])
     with a.process(*args(ckey, '192.0.2.34', 'test.example.org',
                          hmac_type='sha256', hmac_key=b'n55gzRK2UcGa8PqULwCmoeobbBw6pG')) as p:
@@ -125,7 +125,7 @@ def test_reject_by_valid_ip_but_no_hmac_with_correct_domain(ckey):
     a.parse_block('all', [
         ('ip', '192.0.2.0/24'),
         ('hmac_type', 'sha256'),
-        ('hmac_key', b'n55gzRK2UcGa8PqULwCmoeobbBw6pG'),
+        ('hmac_key', 'n55gzRK2UcGa8PqULwCmoeobbBw6pG'),
         ('domain', '*.example.org')])
     with a.process(*args(ckey, '192.0.2.34', 'test.example.org')) as p:
         assert p.acceptable() is False
@@ -136,7 +136,7 @@ def test_reject_by_valid_ip_but_hmac_with_wrong_key_with_correct_domain(ckey):
     a.parse_block('all', [
         ('ip', '192.0.2.0/24'),
         ('hmac_type', 'sha256'),
-        ('hmac_key', b'n55gzRK2UcGa8PqULwCmoeobbBw6pG'),
+        ('hmac_key', 'n55gzRK2UcGa8PqULwCmoeobbBw6pG'),
         ('domain', '*.example.org')])
     with a.process(*args(ckey, '192.0.2.34', 'test.example.org',
                          hmac_type='sha256', hmac_key=b'FM278BKEq0q9IsTxi4SNQBTVbggPWf')) as p:
@@ -148,7 +148,7 @@ def test_reject_by_valid_ip_but_hmac_with_wrong_type_with_correct_domain(ckey):
     a.parse_block('all', [
         ('ip', '192.0.2.0/24'),
         ('hmac_type', 'sha256'),
-        ('hmac_key', b'n55gzRK2UcGa8PqULwCmoeobbBw6pG'),
+        ('hmac_key', 'n55gzRK2UcGa8PqULwCmoeobbBw6pG'),
         ('domain', '*.example.org')])
     with a.process(*args(ckey, '192.0.2.34', 'test.example.org',
                          hmac_type='sha384', hmac_key=b'n55gzRK2UcGa8PqULwCmoeobbBw6pG')) as p:
