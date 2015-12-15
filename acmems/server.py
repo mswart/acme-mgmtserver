@@ -2,22 +2,6 @@ import socket
 import socketserver
 import http.server
 
-from OpenSSL import crypto
-import pyasn1.type
-from pyasn1.codec.der import decoder
-from ndg.httpsclient.subj_alt_name import SubjectAltName as BaseSubjectAltName
-
-
-### Note: This is a slightly bug-fixed version of same from ndg-httpsclient.
-class SubjectAltName(BaseSubjectAltName):
-    '''ASN.1 implementation for subjectAltNames support'''
-
-    # There is no limit to how many SAN certificates a certificate may have,
-    #   however this needs to have some limit so we'll set an arbitrarily high
-    #   limit.
-    sizeSpec = pyasn1.type.univ.SequenceOf.sizeSpec + \
-        pyasn1.type.constraint.ValueSizeConstraint(1, 1024)
-
 
 class ThreadedACMEServerInet4(socketserver.ThreadingMixIn,
                               http.server.HTTPServer):
@@ -70,37 +54,24 @@ class ACMEHTTPHandler(ACMEAbstractHandler):
 
 
 class ACMEMgmtHandler(ACMEAbstractHandler):
+    @property
+    def auth(self):
+        return self.manager.config.auth
+
     def do_POST(self):
         """ Handles POST request (upload files). """
         if self.path != '/sign':
             self.send_error(404)
             return
-        csrpem = self.rfile.read(int(self.headers['Content-Length']))
-        csr = crypto.load_certificate_request(crypto.FILETYPE_PEM, csrpem)
-        common_name, dns_names = self.parse_csr(csr)
-        print(self.client_address, common_name, dns_names)
-        authzrs = self.manager.acquire_domain_validations(dns_names)
-        certs = '\n'.join(self.manager.issue_certificate(csr, authzrs))
-        print(certs)
-        self.send_data(certs)
-
-    def parse_csr(self, req):
-        common_name = req.get_subject().CN
-        dns_names = []
-        for ext in req.get_extensions():
-            if ext.get_short_name() != b'subjectAltName':
-                continue
-            general_names = SubjectAltName()
-            data = ext.get_data()
-            decoded_dat = decoder.decode(data, asn1Spec=general_names)
-            for name in decoded_dat:
-                if not isinstance(name, SubjectAltName):
-                    continue
-                for entry in range(len(name)):
-                    component = name.getComponentByPosition(entry)
-                    if component.getName() != 'dNSName':
-                        continue
-                    dns_names.append(str(component.getComponent()))
-        if common_name not in dns_names:
-            dns_names.insert(0, common_name)
-        return common_name, tuple(dns_names)
+        try:
+            with self.auth.process(self.client_address, self.headers, self.rfile) as p:
+                if not p.acceptable():
+                    self.send_error(401)
+                print(self.client_address, p.common_name, p.dns_names)
+                authzrs = self.manager.acquire_domain_validations(p.dns_names)
+                certs = '\n'.join(self.manager.issue_certificate(p.csr, authzrs))
+                print(certs)
+                self.send_data(certs)
+        except Exception:
+            self.send_error(500)
+            raise

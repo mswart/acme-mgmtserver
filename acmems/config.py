@@ -1,6 +1,9 @@
 import os.path
 import socket
 import warnings
+import re
+
+from acmems.auth import Authenticator
 
 
 class ConfigurationError(Exception):
@@ -34,8 +37,13 @@ class OptionRedifinitionWarning(ConfigurationWarning):
     pass
 
 
+class UnusedSectionWarning(ConfigurationWarning):
+    pass
+
+
 class Configurator():
     def __init__(self, *configs):
+        self.auth = Authenticator()
         for config in configs:
             self.parse(config)
 
@@ -51,6 +59,14 @@ class Configurator():
         config = self.read_data(config)
         self.parse_account_config(config.pop('account'))
         self.parser_listeners_config(config.pop('listeners'))
+        auth_group_re = re.compile('^auth "?(?P<name>.+)"?$')
+        for group, options in config.items():
+            match = auth_group_re.match(group)
+            if match:
+                self.auth.parse_block(match.group('name'), options)
+            else:
+                warnings.warn('Unknown section name: {0}'.format(group),
+                              UnusedSectionWarning, stacklevel=2)
 
     @staticmethod
     def read_data(config):

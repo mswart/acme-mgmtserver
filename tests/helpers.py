@@ -19,7 +19,11 @@ def MA(dir):
     return M('''[account]
         dir = {}
         acme-server = http://127.0.0.1:4000/directory
-        [listeners]'''.format(dir), connect=True)
+        [listeners]
+        [auth "all"]
+        all=yes
+        domain=*
+        '''.format(dir), connect=True)
 
 
 def gencsrpem(domains, key):

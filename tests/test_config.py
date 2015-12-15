@@ -206,3 +206,15 @@ def test_warning_on_unknown_listeners_option():
             ''')
     assert 'manager' in str(e[0].message)
     assert 'https://acme.example.org/directory' in str(e[0].message)
+
+
+### unknown section
+
+def test_warning_on_unknown_section():
+    with pytest.warns(config.UnusedSectionWarning) as e:
+        parse('''
+            [account]
+            [listeners]
+            [unknown]
+            ''')
+    assert 'unknown' in str(e[0].message)

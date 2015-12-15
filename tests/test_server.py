@@ -7,7 +7,7 @@ from pyasn1.codec.der import decoder
 from OpenSSL import crypto
 
 from tests.helpers import MA, gencsrpem
-from acmems import server
+from acmems import server, auth
 
 
 #### http server
@@ -44,12 +44,12 @@ def test_mgmt_complete_multiple_domains(registered_account_dir, http_server, mgm
         ext = x509[0].get_extension(i)
         if ext.get_short_name() != b'subjectAltName':
             continue
-        general_names = server.SubjectAltName()
+        general_names = auth.SubjectAltName()
         data = ext.get_data()
         dns_names = []
         decoded_dat = decoder.decode(data, asn1Spec=general_names)
         for name in decoded_dat:
-            if not isinstance(name, server.SubjectAltName):
+            if not isinstance(name, auth.SubjectAltName):
                 continue
             for entry in range(len(name)):
                 component = name.getComponentByPosition(entry)
@@ -75,12 +75,12 @@ def test_mgmt_complete_one_domain(registered_account_dir, http_server, mgmt_serv
         ext = x509[0].get_extension(i)
         if ext.get_short_name() != b'subjectAltName':
             continue
-        general_names = server.SubjectAltName()
+        general_names = auth.SubjectAltName()
         data = ext.get_data()
         dns_names = []
         decoded_dat = decoder.decode(data, asn1Spec=general_names)
         for name in decoded_dat:
-            if not isinstance(name, server.SubjectAltName):
+            if not isinstance(name, auth.SubjectAltName):
                 continue
             for entry in range(len(name)):
                 component = name.getComponentByPosition(entry)

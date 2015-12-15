@@ -59,6 +59,7 @@ setup(
         'ndg-httpsclient',  # urllib3 InsecurePlatformWarning (#304)
         'pyasn1',  # urllib3 InsecurePlatformWarning (#304)
         'PyOpenSSL>=0.15',  # X509Req.get_extensions (>=0.15)
+        'IPy',
     ],
 
     scripts=['bin/acmems'],
