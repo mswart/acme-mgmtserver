@@ -1,13 +1,32 @@
 import os
 import urllib.request
 import urllib.error
+import http.client
 
 import pytest
 from pyasn1.codec.der import decoder
 from OpenSSL import crypto
 
-from tests.helpers import MA, gencsrpem
+from tests.helpers import M, MA, gencsrpem
 from acmems import server, auth
+
+
+class BindingHTTPHandler(urllib.request.AbstractHTTPHandler):
+    # must be in front
+    handler_order = 10
+
+    def __init__(self, source_address, **kwargs):
+        super().__init__(**kwargs)
+        self.source_address = source_address
+
+    def http_open(self, req):
+        return self.do_open(http.client.HTTPConnection, req,
+                            source_address=self.source_address)
+
+    http_request = urllib.request.AbstractHTTPHandler.do_request_
+
+open127801 = urllib.request.build_opener(BindingHTTPHandler(('127.8.0.1', 0)))
+open127001 = urllib.request.build_opener(BindingHTTPHandler(('127.0.0.1', 0)))
 
 
 #### http server
@@ -15,8 +34,9 @@ from acmems import server, auth
 
 def test_for_404_for_unknown_requests(http_server):
     server.ACMEAbstractHandler.manager = MA('tests/support/valid/', connect=False)
-    with pytest.raises(urllib.error.HTTPError):
+    with pytest.raises(urllib.error.HTTPError) as e:
         urllib.request.urlopen('http://127.0.0.1:5002/file_not_found')
+    assert e.value.code == 404
 
 
 #### mgmt server
@@ -24,8 +44,43 @@ def test_for_404_for_unknown_requests(http_server):
 def test_mgmt_for_404_for_unknown_requests(mgmt_server, ckey):
     server.ACMEAbstractHandler.manager = MA('tests/support/valid/', connect=False)
     csr = gencsrpem(['test.example.org'], ckey)
-    with pytest.raises(urllib.error.HTTPError):
+    with pytest.raises(urllib.error.HTTPError) as e:
         urllib.request.urlopen('http://127.0.0.1:{}/signing'.format(mgmt_server.server_port), csr)
+    assert e.value.code == 404
+
+
+def test_mgmt_reject_sign_with_wrong_ip(http_server, mgmt_server, ckey):
+    server.ACMEAbstractHandler.manager = M('''
+        [account]
+        dir = tests/support/valid
+        acme-server = http://127.0.0.1:4000/directory
+        [listeners]
+        [auth "localhost"]
+        ip = 127.0.0.0/32
+        domain=*
+        ''')
+    csr = gencsrpem(['test.example.org'], ckey)
+    with pytest.raises(urllib.error.HTTPError) as e:
+        open127801.open('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
+    assert e.value.code == 401
+
+
+def test_mgmt_reject_correct_ip_but_missing_sign_with_wrong_ip(http_server, mgmt_server, ckey):
+    server.ACMEAbstractHandler.manager = M('''
+        [account]
+        dir = tests/support/valid
+        acme-server = http://127.0.0.1:4000/directory
+        [listeners]
+        [auth "localhost"]
+        ip = 127.0.0.0/32
+        hmac_type = sha256
+        hmac_key = oiFDiu1uEM7xSzdUnQdTbyYAr
+        domain=*
+        ''')
+    csr = gencsrpem(['test.example.org'], ckey)
+    with pytest.raises(urllib.error.HTTPError) as e:
+        open127001.open('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
+    assert e.value.code == 401
 
 
 @pytest.mark.boulder

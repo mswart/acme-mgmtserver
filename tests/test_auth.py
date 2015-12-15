@@ -13,7 +13,7 @@ def args(ckey, client_ip, *domains, hmac_type=None, hmac_key=None, **headers):
     if hmac_key and hmac_type:
         hash = hmac.new(hmac_key, csrpem, digestmod=hmac_type).hexdigest()
         headers['Authentication'] = 'hmac name={}, hash={}'.format(hmac_type, hash)
-    return (client_ip, headers, io.BytesIO(csrpem))
+    return ((client_ip, 3405), headers, io.BytesIO(csrpem))
 
 
 def test_reject_for_no_auth_block():

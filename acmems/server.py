@@ -67,6 +67,7 @@ class ACMEMgmtHandler(ACMEAbstractHandler):
             with self.auth.process(self.client_address, self.headers, self.rfile) as p:
                 if not p.acceptable():
                     self.send_error(401)
+                    return
                 print(self.client_address, p.common_name, p.dns_names)
                 authzrs = self.manager.acquire_domain_validations(p.dns_names)
                 certs = '\n'.join(self.manager.issue_certificate(p.csr, authzrs))

@@ -45,7 +45,7 @@ class IPAuthMethod():
         return self.check(processor)
 
     def check(self, processor):
-        cip = IP(processor.client_address)
+        cip = IP(processor.client_address[0])
         for ip in self.ips:
             if cip in ip:
                 return True
