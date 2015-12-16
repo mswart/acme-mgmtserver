@@ -137,10 +137,10 @@ openssl genrsa 4096 > domain.key
 # please generate a new csr for to renew your certificate
 openssl req -new -sha256 -key domain.key -subj "/CN=example.org" > domain-201512.csr
 # or
-openssl req -new -sha256 -key domain.key -subj "/CN=example.org" -reqext3 SAN -config $(cat /etc/ssl/openssl.cnf <(printf "[SAN]\nsubjectAltName=DNS:example.org,DNS:www.example.org")) > domain-201512.csr
+openssl req -new -sha256 -key domain.key -subj "/CN=example.org" -reqexts SAN -config <(cat /etc/ssl/openssl.cnf <(printf "[SAN]\nsubjectAltName=DNS:example.org,DNS:www.example.org")) > domain-201512.csr
 
 # upload sign csr with shared key
-wget --post-file=domain-201512.csr --header=`openssl dgst -sha256 -hmac '$KEY' domain-201512.csr | sed -e 's/HMAC-\(.*\)(.*)= *\(.*\)/Authentication: hmac name=\L\1\E, hash=\2/'` http://acmese:1313/sign > domain-201512.pem
+wget --post-file=domain-201512.csr --header="`openssl dgst -sha256 -hmac '$KEY' domain-201512.csr | sed -e 's/HMAC-\(.*\)(.*)= *\(.*\)/Authentication: hmac name=\L\1\E, hash=\2/'`" http://acmese:1313/sign > domain-201512.pem
 # upload csr with out sign
 wget --post-file=domain-201512.csr http://acmese:1313/sign > domain-201512.pem
 ```
