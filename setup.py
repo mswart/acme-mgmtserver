@@ -8,7 +8,7 @@ here = path.abspath(path.dirname(__file__))
 with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
-from acme_mgmtserver import version
+from acmems import version
 
 setup(
     name='acme-mgmtserver',
@@ -58,7 +58,7 @@ setup(
     # What does your project relate to?
     keywords='acme server client proxy letsencrypt',
 
-    packages=['acme_mgmtserver'],
+    packages=['acmems'],
 
     install_requires=[
         'acme>=0.1.0',
