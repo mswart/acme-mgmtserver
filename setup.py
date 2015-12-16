@@ -41,7 +41,7 @@ setup(
         'Topic :: Security :: Cryptography',
         'Topic :: System :: Networking',
         'Topic :: System :: Systems Administration',
-        'Topic :: Utilities'
+        'Topic :: Utilities',
 
         # Pick your license as you wish (should match "license" above)
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
