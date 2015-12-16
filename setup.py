@@ -25,7 +25,7 @@ setup(
     author_email='mswart@devtation.de',
 
     # Choose your license
-    license='MIT',
+    license='GPL',
 
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
@@ -36,14 +36,19 @@ setup(
         'Development Status :: 5 - Production/Stable',
 
         # Indicate who your project is intended for
-        'Intended Audience :: Developers',
-        'Topic :: Software Development :: Libraries',
+        'Intended Audience :: System Administrators',
+        'Topic :: Internet :: WWW/HTTP :: HTTP Servers',
+        'Topic :: Security :: Cryptography',
+        'Topic :: System :: Networking',
+        'Topic :: System :: Systems Administration',
+        'Topic :: Utilities'
 
         # Pick your license as you wish (should match "license" above)
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
+        'Programming Language :: Python :: 3 :: Only',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
@@ -51,7 +56,7 @@ setup(
     ],
 
     # What does your project relate to?
-    keywords='acme server proxy letsencrypt',
+    keywords='acme server client proxy letsencrypt',
 
     packages=['acme_mgmtserver'],
 
