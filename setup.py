@@ -63,5 +63,5 @@ setup(
         'IPy',
     ],
 
-    scripts=['bin/acmems'],
+    scripts=['bin/acmems', 'bin/acme-register'],
 )

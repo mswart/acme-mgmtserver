@@ -1,14 +1,15 @@
 language: python
 python:
-# other versions will be active later
   - '3.3'
   - '3.4'
   - '3.5'
 sudo: required
 dist: trusty
-script: py.test
 install:
   - sudo tests/scripts/setup-dependencies.sh
   - tests/scripts/setup-boulder.sh
   - pip install -r requirements.txt
+script:
+  - py.test
+  - tests/integration/register.sh
 after_script: cat ~/build/go//src/github.com/letsencrypt/boulder/nohup.out

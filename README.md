@@ -60,7 +60,7 @@ The configuration is a basic INI file, with multiple key support. The main parts
 
 ```bash
 [account]
-# the ACME server to talk to; I recommend to first test 
+# the ACME server to talk to; I recommend to first test
 # against the staging system
 acme-server = https://acme-staging.api.letsencrypt.org/directory
 # account dir; contains
@@ -100,6 +100,30 @@ hmac_type=sha256
 hmac_key=A1YP67armNf3cBrecyJHdb035
 domain=mail?.example.org
 domain=mail.example.com
+```
+
+
+## Registration
+
+The executable `acme-register` supports to register a the ACME server. This
+will not be done automatically, you have to call it manual before the first use of the server itself.
+
+Please call a look at the help output for further instration `acme-register --help`.
+
+A registration could look like this:
+
+```bash
+> bin/acme-register --gen-key --register --email test@example.org configs/integration.ini
+Generate private key ... done
+Initialize ACME client ... done
+Register ... done
+You need to accept the terms of service at http://127.0.0.1:4001/terms/v1
+> bin/acme-register --accept-terms-of-service=http://127.0.0.1:4001/terms/v1 configs/integration.ini
+Load private key ... done
+Initialize ACME client ... done
+Refreshing current registration ... done
+You need to accept the terms of service at http://127.0.0.1:4001/terms/v1
+Accepting ToS at http://127.0.0.1:4001/terms/v1 ... done
 ```
 
 
@@ -186,7 +210,7 @@ Error code:
 
 ## Testing
 
-The server is mostly tests (some boulder error responses are difficult to reproduce). You need `py.test` to run the tests. 
+The server is mostly tests (some boulder error responses are difficult to reproduce). You need `py.test` to run the tests.
 
 The tests marked as `boulder` needs a local ACME server listening on `127.0.0.1:4000` sends all HTTP01 test challenges to `127.0.0.1:5002`. To install boulder take a look at the [Boulder README](https://github.com/letsencrypt/boulder) and/or at the prepare scripts for travis to setup boulder (`tests/scripts`).
 

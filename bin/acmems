@@ -19,18 +19,10 @@ from acmems.server import ThreadedACMEServerByType, ACMEAbstractHandler, ACMEHTT
 from acmems.version import STRING as VERSIONSTRING
 
 
-class BooleanAction(argparse.Action):
-    def __call__(self, parser, namespace, values, option_string=None):
-        setattr(namespace, self.dest, values if values is not None else True)
-
-
 parser = argparse.ArgumentParser(description='Basic Python Server to execute'
                                  ' ACME instead of dump clients')
-parser.add_argument('configs', type=argparse.FileType('r'), nargs='+',
+parser.add_argument('configs', type=argparse.FileType('r'), nargs='+', metavar='CONFIG',
                     help='file path to configuration file')
-# parser.add_argument('--account-dir', help='file path to configuration file')
-# parser.add_argument('--mgmt-port', type=int, default=1313, help='port for mgmt traffic')
-# parser.add_argument('--http-port', type=int, default=1380, help='port for mgmt traffic')
 parser.add_argument('--version', action='version', version='%(prog)s ' + VERSIONSTRING)
 
 args = parser.parse_args()
