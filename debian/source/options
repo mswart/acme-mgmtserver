@@ -1,0 +1,2 @@
+compression = "xz"
+extend-diff-ignore = "(\.coverage|\.cache/.*|htmlcov/.*|tests/integration/(account|log|work)/.*)"

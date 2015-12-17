@@ -1,0 +1,31 @@
+Source: acme-mgmtserver
+Maintainer: Malte Swart <packages@devtation.de>
+Section: python
+Priority: optional
+Build-Depends: python (>= 2.7), python3 (>= 3.2), debhelper (>= 9), python-setuptools, python3-setuptools
+Standards-Version: 3.9.5
+X-Python3-Version: >= 3.4
+Homepage: https://github.com/mswart/acme-mgmtserver
+Vcs-Git: git://git@github.com:mswart/acme-mgmtserver.git
+Vcs-Browser: https://github.com/mswart/acme-mgmtserver
+
+Package: acme-mgmtserver
+Architecture: all
+Depends: ${misc:Depends}, ${python3:Depends}
+Description: Basic Python Server to execute ACME instead of dumb clients
+ This tools is yet another ACME client ... but as a client/server model.
+ .
+ * Only the server with account information: It is not that security
+   relevant, but only the ACME Management Server needs access to the account
+   information / key for the ACME server like letsencrypt.
+ * Only the server requires all the ACME dependencies: The clients requires
+   only a SSL tool like OpenSSL and a HTTP client like wget or curl, no
+   python, no build tools. Python with python-acme and its dependencies
+   (pyopenssl, pyasn1, ...) is only needed for the server.
+ * ACME handling can be put into own VM / container ...: The server can be
+   placed into a own VM, container, network segment to limit the security
+   risk on compromised systems.
+ * Supports distributed web servers: All `.well-known/acme-challenges`
+   requests from all servers can be served directly by the server. This make
+   it easy to validate domains when using multiple web server in distributed
+   or fail-over fashion.
