@@ -5,6 +5,9 @@ python:
   - '3.5'
 sudo: required
 dist: trusty
+branches:
+  except:
+    - /debian.*/
 install:
   - sudo tests/scripts/setup-dependencies.sh
   - tests/scripts/setup-boulder.sh
