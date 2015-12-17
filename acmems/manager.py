@@ -21,7 +21,7 @@ class ACMEManager():
 
     :ivar dict responses: Responses to deliver; designed as answers for
         authorization challenges. dict[host][path] = value
-    :ivar dict authzrs: List of current active `acme.message.AuthorizationResource`
+    :ivar dict authzrs: List of current active `acme.messages.AuthorizationResource`
     :ivar acmems.config.Configuration config: Active configuration
 
     '''
@@ -174,9 +174,10 @@ class ACMEManager():
             Expired challenges will clear automatically; invalided challenges
             will not.
 
-            :param list[str] domains: List of domains to validate
-            :return list[acme.message.Challenge]: Challenges for the requested
-                domains
+            :param domains: List of domains to validate
+            :type domains: list of `str`
+            :returns: Challenges for the requested domains
+            :rtype: acme.messages.ChallengeBody
         '''
         while True:
             authzrs = []
@@ -218,16 +219,18 @@ class ACMEManager():
             Renew revoked or expired ones.
             Refresh pending/processing authorizations
 
-            :param acme.message.AuthorizationResource authzr: the authzr in
+            :param acme.messages.AuthorizationResource authzr: the authzr in
                 question
-            :return acme.message.AuthorizationResource: a valid authzr
+            :return: a valid authzr
+            :rtype: acme.messages.AuthorizationResource
             :raises acmems.exceptions.AuthorizationNotYetProcessed: We have to
                 wait while the ACME server processes the autzr
             :raises acmems.exceptions.AuthorizationNotYetRequested: new authzr
                 created; have to wait until someone requests it
             :raises acmems.exceptions.ChallengesUnknownStatus: unknown status
-            :raises acmems.excpetions.NoChallengeMethodsSupported: HTTP01 is
+            :raises acmems.exceptions.NoChallengeMethodsSupported: HTTP01 is
                 not supported
+            :raises acmems.exceptions.ChallengeFailed: challenge failed
         '''
         authz = authzr.body
         domain = authz.identifier.value
@@ -262,13 +265,14 @@ class ACMEManager():
         ''' Refreshes a authorization for status changes
 
             :param str domain: domain name for the authorization
-            :return acme.message.AuthorizationResource: a valid authzr
+            :return: a valid authzr
+            :rtype: acme.messages.AuthorizationResource
             :raises acmems.exceptions.AuthorizationNotYetProcessed: We have to
                 wait while the ACME server processes the autzr
             :raises acmems.exceptions.AuthorizationNotYetRequested: new authzr
                 created; have to wait until someone requests it
             :raises acmems.exceptions.ChallengesUnknownStatus: unknown status
-            :raises acmems.excpetions.NoChallengeMethodsSupported: HTTP01 is
+            :raises acmems.exceptions.NoChallengeMethodsSupported: HTTP01 is
                 not supported
         '''
         self.log('Refresh authorization for {}'.format(domain))
@@ -281,13 +285,14 @@ class ACMEManager():
         ''' Requests a complete new authorization for the given domain
 
             :param str domain: domain name for the authorization
-            :return acme.message.AuthorizationResource: a valid authzr
+            :return: a valid authzr
+            :rtype: acme.messages.AuthorizationResource
             :raises acmems.exceptions.AuthorizationNotYetProcessed: We have to
                 wait while the ACME server processes the autzr
             :raises acmems.exceptions.AuthorizationNotYetRequested: new authzr
                 created; have to wait until someone requests it
             :raises acmems.exceptions.ChallengesUnknownStatus: unknown status
-            :raises acmems.excpetions.NoChallengeMethodsSupported: HTTP01 is
+            :raises acmems.exceptions.NoChallengeMethodsSupported: HTTP01 is
                 not supported
         '''
         self.log('Requesting new authorization for {}'.format(domain))

@@ -36,6 +36,7 @@ class Authenticator():
 
 
 class IPAuthMethod():
+    ''' Autentication by source IP'''
     option_names = ['ip']
 
     def __init__(self, ips=None):
@@ -57,6 +58,7 @@ class IPAuthMethod():
 
 
 class HmacAuthMethod():
+    ''' Authentication by HMAC / secret key '''
     option_names = ['hmac_type', 'hmac_key']
 
     def parse(self, option, value):
@@ -94,6 +96,7 @@ class HmacAuthMethod():
 
 
 class AllAuthMethod():
+    ''' Allow all authentication'''
     option_names = ['all']
 
     def parse(self, option, value):
@@ -108,6 +111,9 @@ class AllAuthMethod():
 
 
 class Block():
+    ''' One authentication block - combination of authentications
+        and list of allowed domains
+    '''
     def __init__(self, name, options):
         self.name = name
         self.methods = []
@@ -161,6 +167,9 @@ class Block():
 
 
 class Processor():
+    ''' Helper object to process a request, check authentication,
+        reads and parse CSR
+    '''
     def __init__(self, auth, client_address, headers, rfile):
         self.auth = auth
         self.client_address = client_address
