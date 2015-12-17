@@ -1,7 +1,7 @@
-ACME Management Server
-======================
+ACME Management Server (ACMEMS)
+===============================
 
-[![Build Status](http://img.shields.io/travis/mswart/acme-mgmtserver/master.svg)](https://travis-ci.org/mswart/acme-mgmtserver)
+[![Build Status](https://img.shields.io/travis/mswart/acme-mgmtserver/master.svg)](https://travis-ci.org/mswart/acme-mgmtserver) [![Build Status](https://img.shields.io/pypi/v/acme-mgmtserver.svg)](https://pypi.python.org/pypi/acme-mgmtserver) [![Python Versions](https://img.shields.io/pypi/pyversions/acme-mgmtserver.svg)](https://pypi.python.org/pypi/acme-mgmtserver) [![PyPi Status](https://img.shields.io/pypi/status/acme-mgmtserver.svg)](https://pypi.python.org/pypi/acme-mgmtserver)
 
 
 [LetsEncrypt](https://letsencrypt.org) supports issuing free certificates by communication via ACME - the Automatically Certificate Management Evaluation protocol.
@@ -13,13 +13,15 @@ This tools is yet another ACME client ... but as a client/server model.
 
 Some aspects are special:
 
-* **Only the server with account information**: It is not that security relevant, but only the ACME Management Server needs access to the account information / key for the ACME server like LetsEncrypt.
-* **Only the server requires all the ACME dependencies**: The clients requires only a SSL tool like OpenSSL and a HTTP client like wget or curl, no python, no build tools. Python with python-acme and its dependencies (PyOpenSSL, PyASN.1, ...) is only needed for the server.
 * **ACME handling can be put into own VM / container ...**: The server can be placed into a own VM, container, network segment to limit the security risk on compromised systems.
-* **Supports distributed web servers**: All `.well-known/acme-challenges` requests from all servers can be served directly by the server. This make it easy to validate domains when using multiple web server in distributed or fail-over fashion.
+* **Only the server requires all the ACME dependencies**: The clients requires only a SSL tool like OpenSSL and a HTTP client like wget or curl, no python, no build tools. Python with python-acme and its dependencies (PyOpenSSL, PyASN.1, ...) is only needed for the server.
+* **Supports distributed web servers**: All `.well-known/acme-challenges` requests for all domains can be served directly by the server. This make it easy to validate domains when using multiple web server in distributed or fail-over fashion by forwarding all `.well-known/acme-challenges` requests.
+* **Only the server needs the ACME account information**: It is not that security relevant, but only the ACME Management Server needs access to the account information / key for the ACME server like LetsEncrypt.
 
 
-## Redirect validation requests back to the ACME Management Server.
+## Domain Validations / Challenges.
+
+Currently are only HTTP01 challenges supported. The normal webserver must be adjusted to forward `.well-known/acme-challenges` requests to the ACME Management Server - this is a prerequirement and will not be check/enforced/configured by this tool.
 
 ### Nginx
 
@@ -49,9 +51,13 @@ Up to you - I am happy to accept a PR to complete this.
 
 ## Installation
 
-My preferred installation is by distribution packages. Due to some new dependencies like `python-acme` and `pyopenssl > 0.15` I use the ACME mgmt-server in a Ubuntu 16.04 LTS xenial container with packages from my own [PPA](https://launchpad.net/~malte.swart/+archive/ubuntu/acme).
+### Debian Packages
 
-But the server and all its dependencies are available on PyPi and can be installed by Python package manager like pip e.g. inside a virtualenv.
+My preferred installation method are distribution packages. `python-acme` and `pyopenssl` are needed in as of 2015Q4 new versions. It is time-consuming to backport all needed dependencies. Therefore I currently only maintain packages for Ubuntu 16.04 LTS xenial in my own [PPA](https://launchpad.net/~malte.swart/+archive/ubuntu/acme). The dependencies were backported to `jessie-backports`, so the PPA should also work with `jessie-backports`.
+
+### PyPI
+
+The server and all its dependencies are available on PyPi and can be installed by Python package manager like pip e.g. inside a virtualenv.
 
 
 ## Configuration
