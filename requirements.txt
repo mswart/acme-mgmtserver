@@ -1,0 +1,5 @@
+acme>=0.1.0
+ndg-httpsclient
+pyasn1
+PyOpenSSL>=0.15
+IPy
