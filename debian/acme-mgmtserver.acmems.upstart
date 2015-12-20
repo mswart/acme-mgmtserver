@@ -1,0 +1,13 @@
+description "ACME Management Server"
+
+start on started networking
+stop on runlevel [!2345]
+
+chdir /var/lib/acmems
+
+setuid acmems
+setgid acmems
+
+respawn
+
+exec python3 /usr/bin/acmems --config /etc/acmems/config.ini
