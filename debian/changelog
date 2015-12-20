@@ -1,3 +1,9 @@
+acme-mgmtserver (0.1.1-2) xenial; urgency=low
+
+  * Create acmems user and add upstart script
+
+ -- Malte Swart <packages@devtation.de>  Sun, 20 Dec 2015 13:43:43 +0100
+
 acme-mgmtserver (0.1.1-1) xenial; urgency=low
 
   * Create debian package
