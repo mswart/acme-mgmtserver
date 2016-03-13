@@ -339,7 +339,7 @@ class ACMEManager():
         # Request a certificate using the CSR and some number of domain validation challenges.
         self.log("Requesting a certificate.")
         try:
-            cert_response = self.client.request_issuance(csr, authzrs)
+            cert_response = self.client.request_issuance(acme.jose.ComparableX509(csr), authzrs)
         except acme.messages.Error as e:
             if e.typ == "urn:acme:error:rateLimited":
                 raise exceptions.RateLimited(e.detail)
