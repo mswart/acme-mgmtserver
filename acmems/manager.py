@@ -118,12 +118,11 @@ class ACMEManager():
         '''
         self.client = acme.client.Client(self.config.acme_server, self.key)
 
-    def register(self, emails=[], phones=[]):
+    def register(self, emails=[]):
         resource = acme.messages.NewRegistration(
             key=self.key.public_key(),
             contact=tuple(
-                ['mailto:{}'.format(mail) for mail in emails]
-                + ['tel:{}'.format(phone) for phone in phones]))
+                ['mailto:{}'.format(mail) for mail in emails]))
         self.registration = self.client.register(resource)
         self.dump_registration()
 

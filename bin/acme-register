@@ -46,8 +46,6 @@ group.add_argument('--register', action='store_true', default=False,
                    help='register key at ACME server')
 group.add_argument('--email', action='append', dest='emails', default=[],
                    help='email contract info (e.g. for expire mail; multiple possible)')
-group.add_argument('--phone', action='append', dest='phones', default=[],
-                   help='phone contract info (multiple possible')
 group.add_argument('--accept-terms-of-service', metavar='URL',
                    help='accept the terms of server (ToS) of the ACME server')
 args = parser.parse_args()
@@ -78,9 +76,7 @@ print(' done')
 if args.register:
     print('Register ...', end='')
     sys.stdout.flush()
-    manager.register(
-        emails=args.emails,
-        phones=args.phones)
+    manager.register(emails=args.emails)
     print(' done')
     if manager.tos_agreement_required():
         print('You need to accept the terms of service at {}'.format(manager.tos_agreement_required()))
