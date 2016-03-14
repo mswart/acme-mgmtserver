@@ -1,7 +1,6 @@
 import os.path
 import time
 from datetime import datetime, timedelta
-import threading
 
 import OpenSSL.crypto
 
@@ -38,17 +37,6 @@ class ACMEManager():
         .. todo::
             Switch to real logging'''
         print(*args)
-
-    def response_for(self, host, path):
-        ''' request a response for a given request
-
-        :param str host: Hostname of the request
-        :param str path: Requested path (e.g. /.well-known/acme-challenges/?)
-        :raises KeyError: Unknown host or path; return 404
-        '''
-        content, event = self.responses[host][path]
-        event.set()
-        return content
 
     # ----------------------------------------------------------
     # 1. generall ACME account handling (keys, registration ...)
@@ -167,7 +155,7 @@ class ACMEManager():
     # 2. the real part (handling authorizations + certificates)
     # ---------------------------------------------------------
 
-    def acquire_domain_validations(self, domains):
+    def acquire_domain_validations(self, validator, domains):
         ''' requests for all given domains domain validations
             If we have cached a valid challenge return this.
             Expired challenges will clear automatically; invalided challenges
@@ -186,9 +174,9 @@ class ACMEManager():
                 try:
                     authzr = self.authzrs.get(domain, None)
                     if authzr:
-                        authzrs.append(self.evaluate_domain_authorization(authzr))
+                        authzrs.append(self.evaluate_domain_authorization(authzr, validator))
                     else:
-                        authzrs.append(self.new_domain_authorization(domain))
+                        authzrs.append(self.new_domain_authorization(validator, domain))
                 except exceptions.AuthorizationNotYetProcessed as e:
                     # we have to wait until validation is decided
                     wait_until = max(wait_until or datetime.min,
@@ -210,7 +198,7 @@ class ACMEManager():
             else:
                 return authzrs
 
-    def evaluate_domain_authorization(self, authzr, refresh_timer=None):
+    def evaluate_domain_authorization(self, authzr, validator, refresh_timer=None):
         ''' Processes a given AuthorizationResource that was fetch from
             the authzrs cache or updated by `refresh_domain_authorization` /
             `acme.client.Client.poll`.
@@ -239,7 +227,7 @@ class ACMEManager():
             # remove auth
             self.authzrs.pop(domain)
             # request new validation
-            return self.new_domain_authorization(domain)
+            return self.new_domain_authorization(validator, domain)
         elif authz.status.name == 'invalid':
             message = '; '.join(c.error.detail
                                 for c in authz.challenges
@@ -250,7 +238,7 @@ class ACMEManager():
             if refresh_timer:  # we already did a refresh, wait for changes
                 raise exceptions.AuthorizationNotYetProcessed(refresh_timer)
             else:
-                return self.refresh_domain_authorization(domain)
+                return self.refresh_domain_authorization(validator, domain)
         else:
             raise exceptions.ChallengesUnknownStatus(authz.status.name)
 
@@ -260,7 +248,7 @@ class ACMEManager():
         return (authz.expires.replace(tzinfo=None) - datetime.utcnow()) \
             < timedelta(seconds=2 * 24 * 3600)  # two days
 
-    def refresh_domain_authorization(self, domain):
+    def refresh_domain_authorization(self, validator, domain):
         ''' Refreshes a authorization for status changes
 
             :param str domain: domain name for the authorization
@@ -277,10 +265,10 @@ class ACMEManager():
         self.log('Refresh authorization for {}'.format(domain))
         self.authzrs[domain], resp = self.client.poll(self.authzrs[domain])
         return self.evaluate_domain_authorization(
-            self.authzrs[domain],
+            self.authzrs[domain], validator,
             refresh_timer=self.client.retry_after(resp, default=10))
 
-    def new_domain_authorization(self, domain):
+    def new_domain_authorization(self, validator, domain):
         ''' Requests a complete new authorization for the given domain
 
             :param str domain: domain name for the authorization
@@ -305,24 +293,7 @@ class ACMEManager():
             raise
         self.authzrs[domain] = authzr
 
-        for combination in authz.combinations:
-            if len(combination) == 1:
-                challenger = authz.challenges[combination[0]]
-                challenge = challenger.chall
-                if isinstance(challenge, acme.challenges.HTTP01):
-                    # store (and deliver) needed response for challenge
-                    content = challenge.validation(self.key)
-                    event = threading.Event()
-                    self.responses.setdefault(domain, {})
-                    self.responses[domain][challenge.path] = (content, event)
-
-                    # answer challenges / give ACME server go to check challenge
-                    resp = challenge.response(self.key)
-                    self.client.answer_challenge(challenger, resp)
-
-                    # we can wait until this challenge is first requested ...
-                    raise exceptions.AuthorizationNotYetRequested(event)
-        else:
+        if not validator.new_authorization(authz, self.client, self.key, domain):
             # HTTP01 is not support; no clue what to do ...
             raise exceptions.NoChallengeMethodsSupported(
                 'No supported challenge methods were offered for {}.'

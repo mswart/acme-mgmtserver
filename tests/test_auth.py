@@ -17,6 +17,12 @@ def args(ckey, client_ip, *domains, hmac_type=None, hmac_key=None, **headers):
     return ((client_ip, 3405), headers, io.BytesIO(csrpem))
 
 
+@pytest.fixture()
+def a(tmpdir_factory):
+    c = config.Configurator()
+    return c.auth
+
+
 def test_reject_for_no_auth_block():
     a = auth.Authenticator()
     with a.process('192.0.2.34', {}, '') as p:
@@ -25,8 +31,7 @@ def test_reject_for_no_auth_block():
 # generall
 
 
-def test_warning_on_unknown_option(ckey):
-    a = auth.Authenticator()
+def test_warning_on_unknown_option(a, ckey):
     with pytest.warns(config.UnusedOptionWarning) as e:
         a.parse_block('all', [('pi', '192.0.2.34'), ('domain', '*.example.org')])
     assert 'auth "all"' in str(e[0].message)
@@ -37,15 +42,13 @@ def test_warning_on_unknown_option(ckey):
 # all auth
 
 
-def test_accept_with_all_block_but_no_domains(ckey):
-    a = auth.Authenticator()
+def test_accept_with_all_block_but_no_domains(a, ckey):
     a.parse_block('all', [('all', 'yes')])
     with a.process(*args(ckey, '192.0.2.34', 'test.example.org')) as p:
         assert p.acceptable() is False
 
 
-def test_accept_with_all_block_but_domains(ckey):
-    a = auth.Authenticator()
+def test_accept_with_all_block_but_domains(a, ckey):
     a.parse_block('all', [('all', 'yes'), ('domain', '*.org')])
     with a.process(*args(ckey, '192.0.2.34', 'test.example.org')) as p:
         assert p.acceptable() is True
@@ -56,51 +59,44 @@ def test_accept_with_all_block_but_domains(ckey):
 ## ip auth
 
 
-def test_accept_by_ip_with_correct_domain(ckey):
-    a = auth.Authenticator()
+def test_accept_by_ip_with_correct_domain(a, ckey):
     a.parse_block('all', [('ip', '192.0.2.0/24'), ('domain', '*.example.org')])
     with a.process(*args(ckey, '192.0.2.34', 'test.example.org')) as p:
         assert p.acceptable() is True
 
 
-def test_accept_by_some_ip_with_correct_domain(ckey):
-    a = auth.Authenticator()
+def test_accept_by_some_ip_with_correct_domain(a, ckey):
     a.parse_block('all', [('ip', '198.51.100.0/24'), ('ip', '192.0.2.0/24'), ('domain', '*.example.org')])
     with a.process(*args(ckey, '192.0.2.34', 'test.example.org')) as p:
         assert p.acceptable() is True
 
 
-def test_accept_by_ip_reject_by_domain(ckey):
-    a = auth.Authenticator()
+def test_accept_by_ip_reject_by_domain(a, ckey):
     a.parse_block('all', [('ip', '192.0.2.0/24'), ('domain', '*.example.org')])
     with a.process(*args(ckey, '192.0.2.34', 'test.example.com')) as p:
         assert p.acceptable() is False
 
 
-def test_accept_by_ip_reject_by_some_domain(ckey):
-    a = auth.Authenticator()
+def test_accept_by_ip_reject_by_some_domain(a, ckey):
     a.parse_block('all', [('ip', '192.0.2.0/24'), ('domain', '*.example.org')])
     with a.process(*args(ckey, '192.0.2.34', 'www.example.org', 'test.example.com')) as p:
         assert p.acceptable() is False
 
 
-def test_reject_by_ip(ckey):
-    a = auth.Authenticator()
+def test_reject_by_ip(a, ckey):
     a.parse_block('all', [('ip', '192.0.2.0/24'), ('domain', '*.example.org')])
     with a.process(*args(ckey, '198.51.100.21', 'test.example.org')) as p:
         assert p.acceptable() is False
 
 
-def test_reject_multiple_correct_domains_from_different_blocks(ckey):
-    a = auth.Authenticator()
+def test_reject_multiple_correct_domains_from_different_blocks(a, ckey):
     a.parse_block('all', [('ip', '192.0.2.0/24'), ('domain', '*.example.org')])
     a.parse_block('all', [('ip', '192.0.2.0/24'), ('domain', '*.example.com')])
     with a.process(*args(ckey, '192.0.2.34', 'test.example.org', 'www.example.com')) as p:
         assert p.acceptable() is False
 
 
-def test_accept_multiple_correct_domains(ckey):
-    a = auth.Authenticator()
+def test_accept_multiple_correct_domains(a, ckey):
     a.parse_block('all', [('ip', '192.0.2.0/24'), ('domain', 'test.example.org'), ('domain', 'www.example.com')])
     with a.process(*args(ckey, '192.0.2.34', 'test.example.org', 'www.example.com')) as p:
         assert p.acceptable() is True
@@ -109,8 +105,7 @@ def test_accept_multiple_correct_domains(ckey):
 ## hmac auth
 
 
-def test_accept_by_ip_and_hmac_with_correct_domain(ckey):
-    a = auth.Authenticator()
+def test_accept_by_ip_and_hmac_with_correct_domain(a, ckey):
     a.parse_block('all', [
         ('ip', '192.0.2.0/24'),
         ('hmac_type', 'sha256'),
@@ -121,8 +116,7 @@ def test_accept_by_ip_and_hmac_with_correct_domain(ckey):
         assert p.acceptable() is True
 
 
-def test_reject_by_valid_ip_but_no_hmac_with_correct_domain(ckey):
-    a = auth.Authenticator()
+def test_reject_by_valid_ip_but_no_hmac_with_correct_domain(a, ckey):
     a.parse_block('all', [
         ('ip', '192.0.2.0/24'),
         ('hmac_type', 'sha256'),
@@ -132,8 +126,7 @@ def test_reject_by_valid_ip_but_no_hmac_with_correct_domain(ckey):
         assert p.acceptable() is False
 
 
-def test_reject_by_valid_ip_but_hmac_with_wrong_key_with_correct_domain(ckey):
-    a = auth.Authenticator()
+def test_reject_by_valid_ip_but_hmac_with_wrong_key_with_correct_domain(a, ckey):
     a.parse_block('all', [
         ('ip', '192.0.2.0/24'),
         ('hmac_type', 'sha256'),
@@ -144,8 +137,7 @@ def test_reject_by_valid_ip_but_hmac_with_wrong_key_with_correct_domain(ckey):
         assert p.acceptable() is False
 
 
-def test_reject_by_valid_ip_but_hmac_with_wrong_type_with_correct_domain(ckey):
-    a = auth.Authenticator()
+def test_reject_by_valid_ip_but_hmac_with_wrong_type_with_correct_domain(a, ckey):
     a.parse_block('all', [
         ('ip', '192.0.2.0/24'),
         ('hmac_type', 'sha256'),

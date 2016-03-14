@@ -74,15 +74,23 @@ acme-server = https://acme-staging.api.letsencrypt.org/directory
 #   registration.json - the registration resource as JSON dump
 dir = /etc/acmems/account/
 
-[listeners]
-# listen for HTTP challenge check requests (e.g. from Nginx)
-http=192.0.2.80:1380
-http=198.51.100.80:1380
-http=[fe80::80%eth0]:1380
+[mgmt]
 # Management interface itself, the clients needs to talk to this
 mgmt=192.0.2.13:1313
 # maximal size for CSR (in bytes)
 max-size = 4k
+# define which verification block is used by default
+default-verification = http
+
+# Define verification blocks
+[verification "http"]
+# the challenge type has to be defined first!
+type = http01
+# listen for HTTP challenge check requests (e.g. from Nginx)
+listener=192.0.2.80:1380
+listener=198.51.100.80:1380
+listener=[fe80::80%eth0]:1380
+
 
 # Define multiple authentification blocks
 # a CSR must fulfil all listed authentication methods and must

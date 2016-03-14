@@ -118,6 +118,7 @@ class Block():
         self.name = name
         self.methods = []
         self.domain_matchers = []
+        self.validator = None
         self.parse(options)
 
     def possible(self, processor):
@@ -148,6 +149,8 @@ class Block():
             if option == 'domain':
                 self.domain_matchers.append(value)
                 continue
+            if option == 'validator':
+                self.validator = value.strip()
             for method in self.methods:
                 if option in method.option_names:
                     method.parse(option, value)
@@ -191,6 +194,7 @@ class Processor():
             :param callable get_body: function to read in body (CSR)
             :return bool: whether request should be accepted
         '''
+        self.validator = None
         # 1. precheck
         possible_blocks = []
         for block in self.auth.blocks:
@@ -203,9 +207,11 @@ class Processor():
             self.read_and_parse_csr()
         except crypto.Error:
             raise exceptions.PayloadInvalid()
+        self.accepted_block = None
         # 3. final check
         for block in possible_blocks:
             if block.check(self):
+                self.validator = block.validator or self.auth.config.default_validator
                 return True
         return False
 

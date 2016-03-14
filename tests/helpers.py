@@ -10,20 +10,22 @@ import OpenSSL
 from acmems import config, manager
 
 
-def M(configcontent, connect=False):
+def M(configcontent, connect=False, validator=None):
     c = config.Configurator(io.StringIO(configcontent))
+    if validator:
+        c.default_validator = validator
     return manager.ACMEManager(c, connect=connect)
 
 
-def MA(dir, connect=True):
+def MA(dir, connect=True, validator=None):
     return M('''[account]
         dir = {}
         acme-server = http://127.0.0.1:4000/directory
-        [listeners]
+        [mgmt]
         [auth "all"]
         all=yes
         domain=*
-        '''.format(dir), connect=connect)
+        '''.format(dir), connect=connect, validator=validator)
 
 
 def gencsrpem(domains, key):
