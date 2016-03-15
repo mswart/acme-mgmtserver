@@ -1,4 +1,5 @@
 import io
+from datetime import datetime, timedelta
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization as pem_serialization
@@ -6,6 +7,7 @@ from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes
 import OpenSSL
+import uuid
 
 from acmems import config, manager
 
@@ -45,3 +47,25 @@ def gencsrpem(domains, key):
 def gencsr(domains, key):
     pem = gencsrpem(domains, key)
     return OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_PEM, pem)
+
+
+def signcsr(csrpem, key, period):
+    csr = x509.load_pem_x509_csr(csrpem, default_backend())
+    builder = x509.CertificateBuilder()
+    builder = builder.subject_name(csr.subject)
+    builder = builder.issuer_name(csr.subject)
+    builder = builder.public_key(csr.public_key())
+    builder = builder.serial_number(int(uuid.uuid4()))
+    builder = builder.add_extension(
+        x509.BasicConstraints(ca=False, path_length=None), critical=True,
+    )
+    builder = builder.not_valid_before(datetime.now() - timedelta(1, 0, 0))
+    builder = builder.not_valid_after(datetime.now() + period)
+    cert = builder.sign(
+        private_key=key, algorithm=hashes.SHA256(),
+        backend=default_backend()
+    )
+    return '\n'.join([
+        cert.public_bytes(pem_serialization.Encoding.PEM).decode('utf-8'),
+        cert.public_bytes(pem_serialization.Encoding.PEM).decode('utf-8')
+    ])

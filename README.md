@@ -17,6 +17,7 @@ Some aspects are special:
 * **Only the server requires all the ACME dependencies**: The clients require only a SSL tool like OpenSSL and a HTTP client like wget or curl, no python, no build tools. Python with python-acme and its dependencies (PyOpenSSL, PyASN.1, ...) is only needed for the server.
 * **Supports distributed web servers**: All `.well-known/acme-challenges` requests for all domains can be served directly by the server. This makes it easy to validate domains when using multiple web server in distributed or fail-over fashion by forwarding all `.well-known/acme-challenges` requests.
 * **Only the server needs the ACME account information**: It is not that security relevant, but only the ACME Management Server needs access to the account information / key for the ACME server like LetsEncrypt.
+* **Caching CSR signs**: The returned signed certificate of a CSR is cached until the certificate is nearly expired (per default two week). If two machines have manual shared a key and CSR and they reusing both, they will both get from ACMEMS the same certificate back.
 
 
 ## Domain Validations / Challenges.
@@ -81,6 +82,8 @@ mgmt=192.0.2.13:1313
 max-size = 4k
 # define which verification block is used by default
 default-verification = http
+# should be signed certificates be stored
+default-storage = file
 
 # Define verification blocks
 [verification "http"]
@@ -91,6 +94,18 @@ listener=192.0.2.80:1380
 listener=198.51.100.80:1380
 listener=[fe80::80%eth0]:1380
 
+# Storages
+[storage "none"]
+# this stores nothing and it is the default storage
+type = none
+
+[storage "file"]
+# caching on disk, the directory must be write for the daemon
+type = file
+directory=/etc/acmems/storage
+# timespan (currently only in days) until a certificate expiry date
+# within the ACMEMS should reissue the certificate
+renew-within=14
 
 # Define multiple authentification blocks
 # a CSR must fulfil all listed authentication methods and must

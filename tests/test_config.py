@@ -4,6 +4,7 @@ import socket
 import pytest
 
 from acmems import config
+from acmems import storages
 
 
 def parse(configcontent):
@@ -260,3 +261,41 @@ def test_unix_socket_as_http_listener():
             listener=/run/acmems/http.sock
             ''')
     assert 'unix socket' in str(e)
+
+
+### storages
+
+def test_implicit_default_storage():
+    config = parse('''
+        [account]
+        acme-server = https://acme.example.org/directory
+        [mgmt]
+        ''')
+    assert set(config.storages) == set(('none',))
+
+
+def test_explict_none_storage():
+    config = parse('''
+        [account]
+        acme-server = https://acme.example.org/directory
+        [mgmt]
+        default-storage = ntest
+        [storage "ntest"]
+        type = none
+        ''')
+    assert set(config.storages) == set(('ntest',))
+    assert type(config.storages['ntest']) is storages.NoneStorageImplementor
+
+
+def test_not_other_none_storage_options():
+    with pytest.raises(config.ConfigurationError) as e:
+        parse('''
+            [account]
+            acme-server = https://acme.example.org/directory
+            [mgmt]
+            default-storage = ntest
+            [storage "ntest"]
+            type = none
+            other = test
+            ''')
+    assert 'other' in str(e)

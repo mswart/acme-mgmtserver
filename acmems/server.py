@@ -77,9 +77,14 @@ class ACMEMgmtHandler(ACMEAbstractHandler):
                     self.send_error(403)
                     return
                 print(self.client_address, p.common_name, p.dns_names)
+                cached_certs = p.storage.from_cache(p.csrpem)
+                if cached_certs:
+                    self.send_data(cached_certs)
+                    return
                 authzrs = self.manager.acquire_domain_validations(p.validator, p.dns_names)
                 certs = '\n'.join(self.manager.issue_certificate(p.csr, authzrs))
                 print(certs)
+                p.storage.add_to_cache(p.csrpem, certs)
                 self.send_data(certs)
         except exceptions.PayloadToLarge:
             self.send_error(413)

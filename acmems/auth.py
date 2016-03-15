@@ -119,6 +119,7 @@ class Block():
         self.methods = []
         self.domain_matchers = []
         self.validator = None
+        self.storage = None
         self.parse(options)
 
     def possible(self, processor):
@@ -151,6 +152,8 @@ class Block():
                 continue
             if option == 'validator':
                 self.validator = value.strip()
+            if option == 'storage':
+                self.storage = value.strip()
             for method in self.methods:
                 if option in method.option_names:
                     method.parse(option, value)
@@ -195,6 +198,7 @@ class Processor():
             :return bool: whether request should be accepted
         '''
         self.validator = None
+        self.storage = None
         # 1. precheck
         possible_blocks = []
         for block in self.auth.blocks:
@@ -212,6 +216,7 @@ class Processor():
         for block in possible_blocks:
             if block.check(self):
                 self.validator = block.validator or self.auth.config.default_validator
+                self.storage = block.storage or self.auth.config.default_storage
                 return True
         return False
 

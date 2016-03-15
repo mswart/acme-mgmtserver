@@ -45,6 +45,8 @@ class Configurator():
     def __init__(self, *configs):
         self.validators = {}
         self.default_validator = None
+        self.storages = {}
+        self.default_storage = None
         self._max_size = None
 
         self.auth = Authenticator(self)
@@ -67,18 +69,21 @@ class Configurator():
         config = self.read_data(config)
         self.parse_account_config(config.pop('account'))
         self.parser_mgmt_config(config.pop('mgmt'))
-        special_group_re = re.compile('^(?P<type>(auth|verification)) (?P<opener>"?)(?P<name>.+)(?P=opener)$')
+        special_group_re = re.compile('^(?P<type>(auth|verification|storage)) (?P<opener>"?)(?P<name>.+)(?P=opener)$')
         for group, options in config.items():
             match = special_group_re.match(group)
             if match:
                 if match.group('type') == 'auth':
                     self.auth.parse_block(match.group('name'), options)
-                else:
+                elif match.group('type') == 'verification':
                     self.parse_verification_group(match.group('name'), options)
+                else:
+                    self.parse_storage_group(match.group('name'), options)
             else:
                 warnings.warn('Unknown section name: {0}'.format(group),
                               UnusedSectionWarning, stacklevel=2)
         self.setup_default_validator()
+        self.setup_default_storage()
 
     @staticmethod
     def read_data(config):
@@ -153,6 +158,11 @@ class Configurator():
                     self.default_validator = False
                 else:
                     self.default_validator = value.strip()
+            elif option == 'default-storage':
+                if value == '':
+                    self.default_storage = False
+                else:
+                    self.default_storage = value.strip()
             elif option == 'listener':
                 if self.mgmt_listeners is None:
                     self.mgmt_listeners = []
@@ -185,3 +195,18 @@ class Configurator():
             self.validators['http'] = setup('http01', ())
         if self.default_validator is not False:
             self.default_validator = self.validators[self.default_validator]
+
+    def parse_storage_group(self, name, options):
+        option, value = options.pop(0)
+        if option != 'type':
+            raise ConfigurationError('A storage must start with the type value!')
+        from acmems.storages import setup
+        self.storages[name] = setup(value, options)
+
+    def setup_default_storage(self):
+        if self.default_storage is None:
+            self.default_storage = 'none'
+            from acmems.storages import setup
+            self.storages[self.default_storage] = setup('none', ())
+        if self.default_storage is not False:
+            self.default_storage = self.storages[self.default_storage]
