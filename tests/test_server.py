@@ -56,7 +56,7 @@ def test_mgmt_reject_sign_with_wrong_ip(http_server, mgmt_server, ckey):
         [account]
         dir = tests/support/valid
         acme-server = http://127.0.0.1:4000/directory
-        [listeners]
+        [mgmt]
         [auth "localhost"]
         ip = 127.0.0.0/24
         domain=*
@@ -72,7 +72,7 @@ def test_mgmt_reject_correct_ip_but_missing_sign(http_server, mgmt_server, ckey)
         [account]
         dir = tests/support/valid
         acme-server = http://127.0.0.1:4000/directory
-        [listeners]
+        [mgmt]
         [auth "localhost"]
         ip = 127.0.0.0/24
         hmac_type = sha256
@@ -90,7 +90,7 @@ def test_mgmt_reject_correct_ip_but_wrong_hmac_key(http_server, mgmt_server, cke
         [account]
         dir = tests/support/valid
         acme-server = http://127.0.0.1:4000/directory
-        [listeners]
+        [mgmt]
         [auth "localhost"]
         ip = 127.0.0.0/24
         hmac_type = sha256
@@ -111,7 +111,7 @@ def test_mgmt_reject_correct_ip_but_wrong_hmac_type(http_server, mgmt_server, ck
         [account]
         dir = tests/support/valid
         acme-server = http://127.0.0.1:4000/directory
-        [listeners]
+        [mgmt]
         [auth "localhost"]
         ip = 127.0.0.0/24
         hmac_type = sha256
@@ -133,7 +133,7 @@ def test_mgmt_reject_to_long_csr(registered_account_dir, http_server, mgmt_serve
         [account]
         dir = {}
         acme-server = http://127.0.0.1:4000/directory
-        [listeners]
+        [mgmt]
         max-size = 512
         [auth "localhost"]
         ip = 127.0.0.0/24
@@ -158,7 +158,7 @@ def test_mgmt_reject_invalid_csr(registered_account_dir, http_server, mgmt_serve
         [account]
         dir = {}
         acme-server = http://127.0.0.1:4000/directory
-        [listeners]
+        [mgmt]
         [auth "localhost"]
         ip = 127.0.0.0/24
         hmac_type = sha256
@@ -182,13 +182,13 @@ def test_mgmt_complete_multiple_domains(registered_account_dir, http_server, mgm
         [account]
         dir = {}
         acme-server = http://127.0.0.1:4000/directory
-        [listeners]
+        [mgmt]
         [auth "localhost"]
         ip = 127.0.0.0/24
         hmac_type = sha256
         hmac_key = oiFDiu1uEM7xSzdUnQdTbyYAr
         domain=*
-        '''.format(registered_account_dir), connect=True)
+        '''.format(registered_account_dir), connect=True, validator=http_server)
     domains = ['www.fullexample{}.org'.format(os.getpid()), 'mail.fullexample{}.org'.format(os.getpid())]
     csr = gencsrpem(domains, ckey)
     request = urllib.request.Request('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
@@ -223,7 +223,7 @@ def test_mgmt_complete_multiple_domains(registered_account_dir, http_server, mgm
 
 @pytest.mark.boulder
 def test_mgmt_complete_one_domain(registered_account_dir, http_server, mgmt_server, ckey):
-    server.ACMEAbstractHandler.manager = MA(registered_account_dir)
+    server.ACMEAbstractHandler.manager = MA(registered_account_dir, validator=http_server)
     domains = ['debug.fullexample{}.org'.format(os.getpid())]
     csr = gencsrpem(domains, ckey)
     response = urllib.request.urlopen('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)

@@ -36,6 +36,7 @@ class Authenticator():
 
 
 class IPAuthMethod():
+    ''' Autentication by source IP'''
     option_names = ['ip']
 
     def __init__(self, ips=None):
@@ -57,6 +58,7 @@ class IPAuthMethod():
 
 
 class HmacAuthMethod():
+    ''' Authentication by HMAC / secret key '''
     option_names = ['hmac_type', 'hmac_key']
 
     def parse(self, option, value):
@@ -94,6 +96,7 @@ class HmacAuthMethod():
 
 
 class AllAuthMethod():
+    ''' Allow all authentication'''
     option_names = ['all']
 
     def parse(self, option, value):
@@ -108,10 +111,15 @@ class AllAuthMethod():
 
 
 class Block():
+    ''' One authentication block - combination of authentications
+        and list of allowed domains
+    '''
     def __init__(self, name, options):
         self.name = name
         self.methods = []
         self.domain_matchers = []
+        self.validator = None
+        self.storage = None
         self.parse(options)
 
     def possible(self, processor):
@@ -142,6 +150,10 @@ class Block():
             if option == 'domain':
                 self.domain_matchers.append(value)
                 continue
+            if option == 'validator':
+                self.validator = value.strip()
+            if option == 'storage':
+                self.storage = value.strip()
             for method in self.methods:
                 if option in method.option_names:
                     method.parse(option, value)
@@ -161,6 +173,9 @@ class Block():
 
 
 class Processor():
+    ''' Helper object to process a request, check authentication,
+        reads and parse CSR
+    '''
     def __init__(self, auth, client_address, headers, rfile):
         self.auth = auth
         self.client_address = client_address
@@ -182,6 +197,8 @@ class Processor():
             :param callable get_body: function to read in body (CSR)
             :return bool: whether request should be accepted
         '''
+        self.validator = None
+        self.storage = None
         # 1. precheck
         possible_blocks = []
         for block in self.auth.blocks:
@@ -194,9 +211,12 @@ class Processor():
             self.read_and_parse_csr()
         except crypto.Error:
             raise exceptions.PayloadInvalid()
+        self.accepted_block = None
         # 3. final check
         for block in possible_blocks:
             if block.check(self):
+                self.validator = block.validator or self.auth.config.default_validator
+                self.storage = block.storage or self.auth.config.default_storage
                 return True
         return False
 

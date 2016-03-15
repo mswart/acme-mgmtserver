@@ -43,6 +43,12 @@ class UnusedSectionWarning(ConfigurationWarning):
 
 class Configurator():
     def __init__(self, *configs):
+        self.validators = {}
+        self.default_validator = None
+        self.storages = {}
+        self.default_storage = None
+        self._max_size = None
+
         self.auth = Authenticator(self)
         for config in configs:
             self.parse(config)
@@ -55,18 +61,29 @@ class Configurator():
     def registration_file(self):
         return os.path.join(self.account_dir, 'registration.json')
 
+    @property
+    def max_size(self):
+        return self._max_size or 4096
+
     def parse(self, config):
         config = self.read_data(config)
         self.parse_account_config(config.pop('account'))
-        self.parser_listeners_config(config.pop('listeners'))
-        auth_group_re = re.compile('^auth "?(?P<name>.+)"?$')
+        self.parser_mgmt_config(config.pop('mgmt'))
+        special_group_re = re.compile('^(?P<type>(auth|verification|storage)) (?P<opener>"?)(?P<name>.+)(?P=opener)$')
         for group, options in config.items():
-            match = auth_group_re.match(group)
+            match = special_group_re.match(group)
             if match:
-                self.auth.parse_block(match.group('name'), options)
+                if match.group('type') == 'auth':
+                    self.auth.parse_block(match.group('name'), options)
+                elif match.group('type') == 'verification':
+                    self.parse_verification_group(match.group('name'), options)
+                else:
+                    self.parse_storage_group(match.group('name'), options)
             else:
                 warnings.warn('Unknown section name: {0}'.format(group),
                               UnusedSectionWarning, stacklevel=2)
+        self.setup_default_validator()
+        self.setup_default_storage()
 
     @staticmethod
     def read_data(config):
@@ -125,31 +142,28 @@ class Configurator():
         if self.acme_server is None:
             self.acme_server = 'https://acme-staging.api.letsencrypt.org/directory'
 
-    def parser_listeners_config(self, config):
-        self.http_listeners = None
+    def parser_mgmt_config(self, config):
         self.mgmt_listeners = None
-        self.max_size = None
         for option, value in config:
             if option == 'max-size':
                 suffixes = {'k': 1024, 'm': 1024*1024}
                 for suffix, mul in suffixes.items():
                     if value.endswith(suffix):
-                        self.max_size = int(value[:len(suffix)]) * mul
+                        self._max_size = int(value[:len(suffix)]) * mul
                         break
                 else:
-                    self.max_size = int(value)
-            elif option == 'http':
-                if self.http_listeners is None:
-                    self.http_listeners = []
-                if value == '':  # disable listener
-                    continue
-                if ':' not in value:
-                    raise ConfigurationError('unix socket are currenlty not supported as listeners')
-                host, port = value.rsplit(':', 1)
-                if host[0] == '[' and host[-1] == ']':
-                    host = host[1:-1]
-                self.http_listeners += socket.getaddrinfo(host, int(port), proto=socket.IPPROTO_TCP)
-            elif option == 'mgmt':
+                    self._max_size = int(value)
+            elif option == 'default-verification':
+                if value == '':
+                    self.default_validator = False
+                else:
+                    self.default_validator = value.strip()
+            elif option == 'default-storage':
+                if value == '':
+                    self.default_storage = False
+                else:
+                    self.default_storage = value.strip()
+            elif option == 'listener':
                 if self.mgmt_listeners is None:
                     self.mgmt_listeners = []
                 if value == '':  # disable listener
@@ -163,11 +177,36 @@ class Configurator():
             else:
                 warnings.warn('Option unknown [{}]{} = {}'.format('listeners', option, value),
                               UnusedOptionWarning, stacklevel=2)
-        if self.max_size is None:
-            self.max_size = 4096
-        if self.http_listeners is None:
-            self.http_listeners = socket.getaddrinfo('0.0.0.0', 1380, proto=socket.IPPROTO_TCP) \
-                + socket.getaddrinfo('::', 1380, proto=socket.IPPROTO_TCP)
         if self.mgmt_listeners is None:
             self.mgmt_listeners = socket.getaddrinfo('127.0.0.1', 1313, proto=socket.IPPROTO_TCP) \
                 + socket.getaddrinfo('::1', 1313, proto=socket.IPPROTO_TCP)
+
+    def parse_verification_group(self, name, options):
+        option, value = options.pop(0)
+        if option != 'type':
+            raise ConfigurationError('A verification must start with the type value!')
+        from acmems.challenges import setup
+        self.validators[name] = setup(value, options)
+
+    def setup_default_validator(self):
+        if self.default_validator is None:
+            self.default_validator = 'http'
+            from acmems.challenges import setup
+            self.validators['http'] = setup('http01', ())
+        if self.default_validator is not False:
+            self.default_validator = self.validators[self.default_validator]
+
+    def parse_storage_group(self, name, options):
+        option, value = options.pop(0)
+        if option != 'type':
+            raise ConfigurationError('A storage must start with the type value!')
+        from acmems.storages import setup
+        self.storages[name] = setup(value, options)
+
+    def setup_default_storage(self):
+        if self.default_storage is None:
+            self.default_storage = 'none'
+            from acmems.storages import setup
+            self.storages[self.default_storage] = setup('none', ())
+        if self.default_storage is not False:
+            self.default_storage = self.storages[self.default_storage]

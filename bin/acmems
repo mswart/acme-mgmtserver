@@ -15,7 +15,7 @@ elif os.path.isdir('/usr/share/acme-mgmtserver'):
 
 from acmems.config import Configurator
 from acmems.manager import ACMEManager
-from acmems.server import ThreadedACMEServerByType, ACMEAbstractHandler, ACMEHTTPHandler, ACMEMgmtHandler
+from acmems.server import ThreadedACMEServerByType, ACMEAbstractHandler, ACMEMgmtHandler
 from acmems.version import STRING as VERSIONSTRING
 
 
@@ -34,11 +34,8 @@ print('load account and init acme client ... ', end='')
 ACMEAbstractHandler.manager = ACMEManager(config)
 print('done')
 
-for http_listen in config.http_listeners:
-    http_service = ThreadedACMEServerByType[http_listen[0]](http_listen[4], ACMEHTTPHandler)
-    Thread(target=http_service.serve_forever,
-           daemon=True,
-           name='http service to server validation request').start()
+for validator in config.validators.values():
+    validator.start()
 
 
 mgmt_services = []

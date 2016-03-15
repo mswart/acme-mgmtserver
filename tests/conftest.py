@@ -13,7 +13,7 @@ if os.path.isdir(os.path.join(parent, 'acmems')):
     sys.path.insert(0, parent)
 
 from tests.helpers import M
-from acmems import server
+from acmems import server, challenges
 
 
 @pytest.fixture(scope='session')
@@ -22,10 +22,10 @@ def registered_account_dir(tmpdir_factory):
     m = M('''[account]
         dir = {}
         acme-server = http://127.0.0.1:4000/directory
-        [listeners]'''.format(account_dir))
+        [mgmt]'''.format(account_dir))
     m.create_private_key()
     m.init_client()
-    m.register(emails=['acme-{}-permanent@example.org'.format(os.getpid())], phones=['+12025551212'])
+    m.register(emails=['acme-{}-permanent@example.org'.format(os.getpid())])
     if m.tos_agreement_required():
         m.accept_terms_of_service(m.tos_agreement_required())
     return account_dir
@@ -42,17 +42,15 @@ def ckey():
 
 @pytest.fixture(scope='session')
 def http_server(request):
-    http_service = server.ThreadedACMEServerInet4(('127.0.0.1', 5002), server.ACMEHTTPHandler)
-    thread = Thread(target=http_service.serve_forever,
-                    daemon=True,
-                    name='http service to server validation request')
-    thread.start()
+    validator = challenges.setup('http01', (('listener', '127.0.0.1:5002'),))
+    services = validator.start()
 
     def fin():
-        http_service.shutdown()
-        thread.join()
+        for service, thread in services:
+            service.shutdown()
+            thread.join()
     request.addfinalizer(fin)
-    return http_service
+    return validator
 
 
 @pytest.fixture(scope='session')

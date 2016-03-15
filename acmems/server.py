@@ -1,3 +1,5 @@
+import sys
+import traceback
 import socket
 import socketserver
 import http.server
@@ -44,13 +46,17 @@ class ACMEAbstractHandler(http.server.BaseHTTPRequestHandler):
 
 
 class ACMEHTTPHandler(ACMEAbstractHandler):
+    def __init__(self, validator, *args, **kwargs):
+        self.validator = validator
+        super().__init__(*args, **kwargs)
+
     def do_GET(self):
         """ Handles POST request (upload files). """
         host = self.headers['Host']
         if host.endswith(':5002'):
             host = host[:-5]
         try:
-            self.send_data(self.manager.response_for(host, self.path))
+            self.send_data(self.validator.response_for(host, self.path))
         except KeyError:
             self.send_error(404)
 
@@ -71,9 +77,14 @@ class ACMEMgmtHandler(ACMEAbstractHandler):
                     self.send_error(403)
                     return
                 print(self.client_address, p.common_name, p.dns_names)
-                authzrs = self.manager.acquire_domain_validations(p.dns_names)
+                cached_certs = p.storage.from_cache(p.csrpem)
+                if cached_certs:
+                    self.send_data(cached_certs)
+                    return
+                authzrs = self.manager.acquire_domain_validations(p.validator, p.dns_names)
                 certs = '\n'.join(self.manager.issue_certificate(p.csr, authzrs))
                 print(certs)
+                p.storage.add_to_cache(p.csrpem, certs)
                 self.send_data(certs)
         except exceptions.PayloadToLarge:
             self.send_error(413)
@@ -81,4 +92,7 @@ class ACMEMgmtHandler(ACMEAbstractHandler):
             self.send_error(415)
         except Exception:
             self.send_error(500)
-            raise
+            print('-'*50, file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+            print('-'*50, file=sys.stderr)
+            sys.stderr.flush()

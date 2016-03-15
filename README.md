@@ -1,7 +1,7 @@
-ACME Management Server
-======================
+ACME Management Server (ACMEMS)
+===============================
 
-[![Build Status](http://img.shields.io/travis/mswart/acme-mgmtserver/master.svg)](https://travis-ci.org/mswart/acme-mgmtserver)
+[![Build Status](https://img.shields.io/travis/mswart/acme-mgmtserver/master.svg)](https://travis-ci.org/mswart/acme-mgmtserver) [![Build Status](https://img.shields.io/pypi/v/acme-mgmtserver.svg)](https://pypi.python.org/pypi/acme-mgmtserver) [![Python Versions](https://img.shields.io/pypi/pyversions/acme-mgmtserver.svg)](https://pypi.python.org/pypi/acme-mgmtserver) [![PyPi Status](https://img.shields.io/pypi/status/acme-mgmtserver.svg)](https://pypi.python.org/pypi/acme-mgmtserver)
 
 
 [LetsEncrypt](https://letsencrypt.org) supports issuing free certificates by communication via ACME - the Automatically Certificate Management Evaluation protocol.
@@ -9,38 +9,41 @@ ACME Management Server
 This tools is yet another ACME client ... but as a client/server model.
 
 
-## Why yet another ACME clients
+## Why yet another ACME client
 
 Some aspects are special:
 
-* **Only the server with account information**: It is not that security relevant, but only the ACME Management Server needs access to the account information / key for the ACME server like LetsEncrypt.
-* **Only the server requires all the ACME dependencies**: The clients requires only a SSL tool like OpenSSL and a HTTP client like wget or curl, no python, no build tools. Python with python-acme and its dependencies (PyOpenSSL, PyASN.1, ...) is only needed for the server.
-* **ACME handling can be put into own VM / container ...**: The server can be placed into a own VM, container, network segment to limit the security risk on compromised systems.
-* **Supports distributed web servers**: All `.well-known/acme-challenges` requests from all servers can be served directly by the server. This make it easy to validate domains when using multiple web server in distributed or fail-over fashion.
+* **ACME handling can be put into own VM / container ...**: The server can be placed into an own VM, container, network segment to limit the security risk on compromised systems.
+* **Only the server requires all the ACME dependencies**: The clients require only a SSL tool like OpenSSL and a HTTP client like wget or curl, no python, no build tools. Python with python-acme and its dependencies (PyOpenSSL, PyASN.1, ...) is only needed for the server.
+* **Supports distributed web servers**: All `.well-known/acme-challenges` requests for all domains can be served directly by the server. This makes it easy to validate domains when using multiple web server in distributed or fail-over fashion by forwarding all `.well-known/acme-challenges` requests.
+* **Only the server needs the ACME account information**: It is not that security relevant, but only the ACME Management Server needs access to the account information / key for the ACME server like LetsEncrypt.
+* **Caching CSR signs**: The returned signed certificate of a CSR is cached until the certificate is nearly expired (per default two week). If two machines have manual shared a key and CSR and they reusing both, they will both get from ACMEMS the same certificate back.
 
 
-## Redirect validation requests back to the ACME Management Server.
+## Domain Validations / Challenges.
+
+Only HTTP01 challenges are currently supported. The normal webserver must be adjusted to forward `.well-known/acme-challenges` requests to the ACME Management Server - this is a prerequirement and will not be checked/enforced/configured by this tool.
 
 ### Nginx
 
 ```
 upstream acme-mgmtserver {
-   server ...;
+    server ...;
 }
 server {
     # ...
     location /.well-known/acme-challenge {
-       proxy_set_header Host $http_host;
-       proxy_set_header X-Real-IP $remote_addr;
-       proxy_pass http://acme-mgmtserver;
-       # to support multiple acme mgmt server check challenge on all upstream server:
-       proxy_next_upstream error timeout http_404;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_pass http://acme-mgmtserver;
+        # to support multiple acme mgmt server check challenge on all upstream server:
+        proxy_next_upstream error timeout http_404;
     }
     # ...
 }
 ```
 
-This passes all acme challenge to our server. `proxy_next_upstream http_404;` can be used to support multiple ACME management servers and search for the response on all servers.
+This passes all ACME challenges to the management server. `proxy_next_upstream http_404;` can be used to support multiple ACME management servers and search for the response on all servers.
 
 ### Apache
 
@@ -49,14 +52,18 @@ Up to you - I am happy to accept a PR to complete this.
 
 ## Installation
 
-My preferred installation is by distribution packages. Due to some new dependencies like `python-acme` and `pyopenssl > 0.15` I use the ACME mgmt-server in a Ubuntu 16.04 LTS xenial container with packages from my own [PPA](https://launchpad.net/~malte.swart/+archive/ubuntu/acme).
+### Debian Packages
 
-But the server and all its dependencies are available on PyPi and can be installed by Python package manager like pip e.g. inside a virtualenv.
+My preferred installation method are distribution packages. `python-acme` and `pyopenssl` are needed in as of 2015Q4 new versions. It is time-consuming to backport all needed dependencies. Therefore I currently only maintain packages for Ubuntu 16.04 LTS Xenial in my own [PPA](https://launchpad.net/~malte.swart/+archive/ubuntu/acme). The dependencies were backported to `jessie-backports`, so the PPA should also work with `jessie-backports`.
+
+### PyPI
+
+The server and all its dependencies are available on PyPi and can be installed by Python package manager like pip e.g. inside a virtualenv.
 
 
 ## Configuration
 
-The configuration is a basic INI file, with multiple key support. The main parts are a the blocks to define the account direction, listen information for the http interfaces and the configuration which client is allowed to request certificates for which certificates.
+The configuration is a basic INI file, with multiple key support. The main parts are the blocks to define the account directory, listen information for the http interfaces and the configuration which client is allowed to request certificates for which domains.
 
 ```bash
 [account]
@@ -68,15 +75,37 @@ acme-server = https://acme-staging.api.letsencrypt.org/directory
 #   registration.json - the registration resource as JSON dump
 dir = /etc/acmems/account/
 
-[listeners]
-# listen for HTTP challenge check requests (e.g. from Nginx)
-http=192.0.2.80:1380
-http=198.51.100.80:1380
-http=[fe80::80%eth0]:1380
+[mgmt]
 # Management interface itself, the clients needs to talk to this
 mgmt=192.0.2.13:1313
 # maximal size for CSR (in bytes)
 max-size = 4k
+# define which verification block is used by default
+default-verification = http
+# should be signed certificates be stored
+default-storage = file
+
+# Define verification blocks
+[verification "http"]
+# the challenge type has to be defined first!
+type = http01
+# listen for HTTP challenge check requests (e.g. from Nginx)
+listener=192.0.2.80:1380
+listener=198.51.100.80:1380
+listener=[fe80::80%eth0]:1380
+
+# Storages
+[storage "none"]
+# this stores nothing and it is the default storage
+type = none
+
+[storage "file"]
+# caching on disk, the directory must be write for the daemon
+type = file
+directory=/etc/acmems/storage
+# timespan (currently only in days) until a certificate expiry date
+# within the ACMEMS should reissue the certificate
+renew-within=14
 
 # Define multiple authentification blocks
 # a CSR must fulfil all listed authentication methods and must
@@ -105,10 +134,9 @@ domain=mail.example.com
 
 ## Registration
 
-The executable `acme-register` supports to register a the ACME server. This
-will not be done automatically, you have to call it manual before the first use of the server itself.
+The executable `acme-register` supports to register at the ACME server. This will not be done automatically, you have to call it manually before the first use of the server itself.
 
-Please call a look at the help output for further instration `acme-register --help`.
+Please have a look at the help output for further instructions `acme-register --help`.
 
 A registration could look like this:
 
@@ -150,7 +178,7 @@ wget --post-file=domain-201512.csr http://acmese:1313/sign > domain-201512.pem
 
 ### Client request
 
-Only POST request to `/sign` are supported.
+Only POST requests to `/sign` are supported.
 
 The body must be a CSR as PEM format; `Content-Length` header is required, `Content-Type` is currently not evaluated.
 
@@ -201,18 +229,18 @@ A3IlV6YS/4SoAHraTLA=
 
 Error code:
 
-* **200**: CSR was signed. Response body contains the certificate and the intermediate certification in PEM form.
-* **403**: Signing is denied, at a look at your auth blocks / authentication methods; are you missing a `Authentication` header?
-* **413**: CSR request is too long. You might increase the `max-size` setting
-* **415**: CSR could not be parsed
-* **500**: Internal exception - take a look at the log and report the bug
+* **200**: CSR was signed. Response body contains the certificate and the intermediate certificate in PEM form.
+* **403**: Signing is denied, have a look at your auth blocks / authentication methods; are you missing an `Authentication` header?
+* **413**: CSR request is too long. You might increase the `max-size` setting.
+* **415**: CSR could not be parsed.
+* **500**: Internal exception - take a look at the log and report the bug.
 
 
 ## Testing
 
 The server is mostly tests (some boulder error responses are difficult to reproduce). You need `py.test` to run the tests.
 
-The tests marked as `boulder` needs a local ACME server listening on `127.0.0.1:4000` sends all HTTP01 test challenges to `127.0.0.1:5002`. To install boulder take a look at the [Boulder README](https://github.com/letsencrypt/boulder) and/or at the prepare scripts for travis to setup boulder (`tests/scripts`).
+The tests marked as `boulder` need a local ACME server listening on `127.0.0.1:4000` sends all HTTP01 test challenges to `127.0.0.1:5002`. To install boulder take a look at the [Boulder README](https://github.com/letsencrypt/boulder) and/or at the prepare scripts for travis to setup boulder (`tests/scripts`).
 
 
 ## Contributing
