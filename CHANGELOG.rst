@@ -7,6 +7,17 @@ This page lists all versions with its changes. ACMEMS follows Semantic Versionin
 Version 0
 -------------------------
 
+v0.2.0
+^^^^^^
+
+Reaching base architecture for 1.0 release. This includes:
+
+* Restucture code and! *config* to support multiple verification mechanism
+* WIP: experiment / prepare for dns01 challenge support (via dns updates)
+* add storage support to not reissue CSRs the same pem, supporting reissue from multiple machines via a once shared key and CSR
+* support newer python-acme releases
+
+
 v0.1.1
 ^^^^^^
 
