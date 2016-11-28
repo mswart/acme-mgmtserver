@@ -15,4 +15,4 @@ GRANT ALL PRIVILEGES ON *.* TO 'boulder'@'%' with grant option;
 FLUSH PRIVILEGES;
 EOF
 # define boulder needed hostnames
-gawk -i inplace '/^127.0.0.1:/ {$0=$0" boulder-mysql boulder-rabbitmq"}' /etc/hosts
+sed --in-place -e '/^127.0.0.1/ s/$/ boulder-mysql boulder-rabbitmq/' /etc/hosts
