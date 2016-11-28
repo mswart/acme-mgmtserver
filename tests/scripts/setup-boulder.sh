@@ -1,8 +1,8 @@
 #!/bin/bash
 set -x
-eval "$(gimme 1.5)"
+eval "$(gimme 1.6)"
 export GOPATH=~/build/go
-export PATH=$PATH:$GOPATH/bin:$GOPATH/src/github.com/letsencrypt/boulder/bin
+export PATH=$PATH:$GOPATH/bin:$GOPATH/src/github.com/letsencrypt/boulder/bin:~/bin
 mkdir -p $GOPATH/src/github.com/letsencrypt/
 git clone git://github.com/letsencrypt/boulder.git --branch release-2016-07-14 $GOPATH/src/github.com/letsencrypt/boulder
 cd $GOPATH/src/github.com/letsencrypt/boulder
@@ -11,5 +11,7 @@ sed -i -e 's/-u root/-u boulder -ptest/' test/create_db.sh
 make
 go install -v ./...
 ./test/setup.sh
+make
+go install -v ./...
 nohup python2.7 start.py &
 sleep 2
