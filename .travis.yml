@@ -13,7 +13,7 @@ script:
   - py.test
   - tests/integration/register.sh
   - tests/integration/gencert.py
-after_script: cat ~/build/go//src/github.com/letsencrypt/boulder/nohup.out
+after_script: cat ~/build/go/src/github.com/letsencrypt/boulder/nohup.out
 deploy:
   provider: pypi
   user: mswart

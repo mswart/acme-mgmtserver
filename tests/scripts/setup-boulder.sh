@@ -1,5 +1,5 @@
 #!/bin/bash
-set -x
+set -ex
 eval "$(gimme 1.6)"
 export GOPATH=~/build/go
 export PATH=$PATH:$GOPATH/bin:$GOPATH/src/github.com/letsencrypt/boulder/bin:~/bin
@@ -9,9 +9,8 @@ cd $GOPATH/src/github.com/letsencrypt/boulder
 #sed -i -e 's/root@tcp/boulder:test@tcp/' policy/_db/dbconf.yml sa/_db/dbconf.yml
 sed -i -e 's/-u root/-u boulder -ptest/' test/create_db.sh
 make
-go install -v ./...
 ./test/setup.sh
-make
-go install -v ./...
+./test/create_db.sh
 nohup python2.7 start.py &
 sleep 2
+cat nohup.out
