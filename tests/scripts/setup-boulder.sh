@@ -9,8 +9,9 @@ cd $GOPATH/src/github.com/letsencrypt/boulder
 #sed -i -e 's/root@tcp/boulder:test@tcp/' policy/_db/dbconf.yml sa/_db/dbconf.yml
 sed -i -e 's/-u root/-u boulder -ptest/' test/create_db.sh
 make
+# we need to install goose now, otherwise the test/create_db.sh call in test/setup.sh will be called before goose is installed
+go get -v bitbucket.org/liamstask/goose/cmd/goose
 ./test/setup.sh
-./test/create_db.sh
 nohup python2.7 start.py &
 sleep 2
 cat nohup.out

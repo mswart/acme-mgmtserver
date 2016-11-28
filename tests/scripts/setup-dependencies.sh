@@ -14,3 +14,5 @@ CREATE USER boulder IDENTIFIED by "test";
 GRANT ALL PRIVILEGES ON *.* TO 'boulder'@'%' with grant option;
 FLUSH PRIVILEGES;
 EOF
+# define boulder needed hostnames
+gawk -i inplace '/^127.0.0.1:/ {$0=$0" boulder-mysql boulder-rabbitmq"}' /etc/hosts
