@@ -22,6 +22,8 @@ go get -v \
   github.com/tools/godep \
   golang.org/x/tools/cover
 
+make GO_BUILD_FLAGS=''
+
 go run cmd/rabbitmq-setup/main.go -server amqp://boulder-rabbitmq
 
 ./test/create_db.sh
