@@ -54,6 +54,13 @@ def http_server(request):
 
 
 @pytest.fixture(scope='session')
+def dnsboulder_validator(request):
+    validator = challenges.setup('dns01-boulder', ())
+    validator.start()
+    return validator
+
+
+@pytest.fixture(scope='session')
 def mgmt_server(request):
     mgmt_service = server.ThreadedACMEServerInet4(('127.0.0.1', 0), server.ACMEMgmtHandler)
     thread = Thread(target=mgmt_service.serve_forever,

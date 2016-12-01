@@ -128,7 +128,7 @@ def test_mgmt_reject_correct_ip_but_wrong_hmac_type(http_server, mgmt_server, ck
 
 
 @pytest.mark.boulder
-def test_mgmt_reject_to_long_csr(registered_account_dir, http_server, mgmt_server, ckey):
+def test_mgmt_reject_too_long_csr(registered_account_dir, http_server, mgmt_server, ckey):
     server.ACMEAbstractHandler.manager = M('''
         [account]
         dir = {}
@@ -199,7 +199,7 @@ def test_mgmt_complete_multiple_domains(registered_account_dir, http_server, mgm
     assert len(certs) == 2
     x509 = [crypto.load_certificate(crypto.FILETYPE_PEM, cert) for cert in certs]
     assert x509[0].get_subject().CN == domains[0]
-    assert x509[0].get_issuer() == x509[1].get_subject()
+    #assert x509[0].get_issuer() == x509[1].get_subject()
     assert x509[0].has_expired() is False
     assert x509[1].has_expired() is False
     for i in range(x509[0].get_extension_count()):
@@ -231,7 +231,48 @@ def test_mgmt_complete_one_domain(registered_account_dir, http_server, mgmt_serv
     assert len(certs) == 2
     x509 = [crypto.load_certificate(crypto.FILETYPE_PEM, cert) for cert in certs]
     assert x509[0].get_subject().CN == domains[0]
-    assert x509[0].get_issuer() == x509[1].get_subject()
+    #assert x509[0].get_issuer() == x509[1].get_subject()
+    assert x509[0].has_expired() is False
+    assert x509[1].has_expired() is False
+    for i in range(x509[0].get_extension_count()):
+        ext = x509[0].get_extension(i)
+        if ext.get_short_name() != b'subjectAltName':
+            continue
+        general_names = auth.SubjectAltName()
+        data = ext.get_data()
+        dns_names = []
+        decoded_dat = decoder.decode(data, asn1Spec=general_names)
+        for name in decoded_dat:
+            if not isinstance(name, auth.SubjectAltName):
+                continue
+            for entry in range(len(name)):
+                component = name.getComponentByPosition(entry)
+                if component.getName() != 'dNSName':
+                    continue
+                dns_names.append(str(component.getComponent()))
+        assert sorted(dns_names) == sorted(domains)
+
+
+@pytest.mark.boulder
+def test_mgmt_complete_one_domain_by_dns(registered_account_dir, http_server, mgmt_server, ckey):
+    server.ACMEAbstractHandler.manager = M('''
+        [account]
+        dir = {}
+        acme-server = http://127.0.0.1:4000/directory
+        [mgmt]
+        default-verification = dns01-boulder
+        [auth "localhost"]
+        ip = 127.0.0.0/24
+        domain=*
+        '''.format(registered_account_dir), connect=True, validator=http_server)
+    domains = ['debug.fullexample{}.org'.format(os.getpid())]
+    csr = gencsrpem(domains, ckey)
+    response = urllib.request.urlopen('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
+    certs = response.read().split(b'\n\n')
+    assert len(certs) == 2
+    x509 = [crypto.load_certificate(crypto.FILETYPE_PEM, cert) for cert in certs]
+    assert x509[0].get_subject().CN == domains[0]
+    #assert x509[0].get_issuer() == x509[1].get_subject()
     assert x509[0].has_expired() is False
     assert x509[1].has_expired() is False
     for i in range(x509[0].get_extension_count()):

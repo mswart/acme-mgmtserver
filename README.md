@@ -22,9 +22,11 @@ Some aspects are special:
 
 ## Domain Validations / Challenges.
 
-Only HTTP01 challenges are currently supported. The normal webserver must be adjusted to forward `.well-known/acme-challenges` requests to the ACME Management Server - this is a prerequirement and will not be checked/enforced/configured by this tool.
+### HTTP01
 
-### Nginx
+The normal webserver must be adjusted to forward `.well-known/acme-challenges` requests to the ACME Management Server - this is a prerequirement and will not be checked/enforced/configured by this tool.
+
+#### Nginx
 
 ```
 upstream acme-mgmtserver {
@@ -45,9 +47,17 @@ server {
 
 This passes all ACME challenges to the management server. `proxy_next_upstream http_404;` can be used to support multiple ACME management servers and search for the response on all servers.
 
-### Apache
+#### Apache
 
 Up to you - I am happy to accept a PR to complete this.
+
+### TLSNI01
+
+`TLSNI01` is currently not supported, but there are few things are missing. Feel free to open a PR or talk to me if you have use for this challenge type.
+
+### DNS01
+
+ACMEMS can instrument DNS servers to serve the needed `TXT` records to validate domain names via `DNS01` challenge. The DNS servers will be updated vis DNS update. Currently there is no security for the updates implemented. We expect that the zone name managed by the name server are second-level domain name (like `example.org`).
 
 
 ## Installation
@@ -55,6 +65,8 @@ Up to you - I am happy to accept a PR to complete this.
 ### Debian Packages
 
 My preferred installation method are distribution packages. `python-acme` and `pyopenssl` are needed in as of 2015Q4 new versions. It is time-consuming to backport all needed dependencies. Therefore I currently only maintain packages for Ubuntu 16.04 LTS Xenial in my own [PPA](https://launchpad.net/~malte.swart/+archive/ubuntu/acme). The dependencies were backported to `jessie-backports`, so the PPA should also work with `jessie-backports`.
+
+To use `DNS01` challenge `python-acme` >= 0.9 is needed. The PPA contains a backported version.
 
 ### PyPI
 
@@ -93,6 +105,16 @@ type = http01
 listener=192.0.2.80:1380
 listener=198.51.100.80:1380
 listener=[fe80::80%eth0]:1380
+
+[verification "dns"]
+# the challenge type has to be defined first!
+type = dns01-dnsUpdate
+# which name server needs to be updated now
+dns-server=192.0.2.53
+# time-to-live for the new entries
+ttl=5
+# timeout for dns update requests
+timeout=30
 
 # Storages
 [storage "none"]
@@ -257,4 +279,4 @@ The tests marked as `boulder` need a local ACME server listening on `127.0.0.1:4
 
 GPL License
 
-Copyright (c) 2015, Malte Swart
+Copyright (c) 2015-2016, Malte Swart
