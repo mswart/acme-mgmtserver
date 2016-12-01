@@ -6,7 +6,6 @@ export PATH=$PATH:$GOPATH/bin:$GOPATH/src/github.com/letsencrypt/boulder/bin:~/b
 mkdir -p $GOPATH/src/github.com/letsencrypt/
 git clone git://github.com/letsencrypt/boulder.git --branch hotfixes/2016-06-30 $GOPATH/src/github.com/letsencrypt/boulder
 cd $GOPATH/src/github.com/letsencrypt/boulder
-#sed -i -e 's/root@tcp/boulder:test@tcp/' policy/_db/dbconf.yml sa/_db/dbconf.yml
 sed -i -e 's/-u root/-u boulder -ptest/' test/create_db.sh
 
 go get -v \

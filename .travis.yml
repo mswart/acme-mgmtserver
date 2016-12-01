@@ -1,7 +1,7 @@
 language: python
 python:
-#  - '3.3'
-#  - '3.4'
+  - '3.3'
+  - '3.4'
   - '3.5'
 sudo: required
 dist: trusty
@@ -12,9 +12,9 @@ install:
 services:
   - rabbitmq
 script:
-  - pytest --tb=line
-  #- tests/integration/register.sh
-  #- tests/integration/gencert.py
+  - pytest
+  - tests/integration/register.sh
+  - tests/integration/gencert.py
 after_script: cat ~/build/go/src/github.com/letsencrypt/boulder/nohup.out
 deploy:
   provider: pypi
