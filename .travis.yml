@@ -12,7 +12,7 @@ install:
 services:
   - rabbitmq
 script:
-  - pytest
+  - py.test
   - tests/integration/register.sh
   - tests/integration/gencert.py
 after_script: cat ~/build/go/src/github.com/letsencrypt/boulder/nohup.out
