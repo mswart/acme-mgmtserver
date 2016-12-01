@@ -1,3 +1,9 @@
+acme-mgmtserver (0.3.0-1) xenial; urgency=medium
+
+  * Merge new 0.3.0 release
+
+ -- Malte Swart <packages@devtation.de>  Thu, 01 Dec 2016 13:04:54 +0100
+
 acme-mgmtserver (0.2.0-1) xenial; urgency=medium
 
   * gbp: define upstream branches
