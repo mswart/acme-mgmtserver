@@ -191,8 +191,10 @@ class Configurator():
     def setup_default_validator(self):
         if self.default_validator is None:
             self.default_validator = 'http'
+        if not self.validators:
             from acmems.challenges import setup
             self.validators['http'] = setup('http01', ())
+            self.validators['dns01-boulder'] = setup('dns01-boulder', ())
         if self.default_validator is not False:
             self.default_validator = self.validators[self.default_validator]
 

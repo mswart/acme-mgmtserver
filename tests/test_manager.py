@@ -124,7 +124,7 @@ def test_certificate_creation(registered_account_dir, http_server, ckey):
 
 @pytest.mark.boulder
 def test_rate_limit_on_certificate_creation(registered_account_dir, http_server, ckey):
-    domains = ['example-rate{}.org'.format(os.getpid())]
+    domains = ['httpexample-rate{}.org'.format(os.getpid())]
     csr = gencsr(domains, ckey)
     m = server.ACMEAbstractHandler.manager = MA(registered_account_dir, validator=http_server)
     authzrs = m.acquire_domain_validations(http_server, domains)

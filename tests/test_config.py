@@ -247,7 +247,7 @@ def test_disable_http_listener():
         [mgmt]
         default-verification=
         ''')
-    assert len(config.validators) is 0
+    assert config.default_validator is False
 
 
 def test_unix_socket_as_http_listener():

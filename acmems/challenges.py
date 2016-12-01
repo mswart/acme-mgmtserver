@@ -94,15 +94,13 @@ class DnsChallengeImplementor(ChallengeImplementor):
             if len(combination) == 1:
                 challenger = authz.challenges[combination[0]]
                 challenge = challenger.chall
-                if isinstance(challenge, acme.challenges.DNS):
-                    # store (and deliver) needed response for challenge
-                    content = base64.b64encode(challenge.gen_validation(key).signature.signature)
+                if isinstance(challenge, acme.challenges.DNS01):
+                    response, validation = challenge.response_and_validation(key)
 
-                    self.add_entry(challenge.validation_domain_name(domain) + '.', content.decode('utf-8'))
+                    self.add_entry(challenge.validation_domain_name(domain) + '.', validation)
 
                     # answer challenges / give ACME server go to check challenge
-                    resp = challenge.gen_response(key)
-                    client.answer_challenge(challenger, resp)
+                    client.answer_challenge(challenger, response)
 
                     # we can wait until this challenge is first requested ...
                     raise exceptions.AuthorizationNotYetProcessed(datetime.now() + timedelta(seconds=2))
