@@ -128,7 +128,7 @@ def test_mgmt_reject_correct_ip_but_wrong_hmac_type(http_server, mgmt_server, ck
 
 
 @pytest.mark.boulder
-def test_mgmt_reject_to_long_csr(registered_account_dir, http_server, mgmt_server, ckey):
+def test_mgmt_reject_too_long_csr(registered_account_dir, http_server, mgmt_server, ckey):
     server.ACMEAbstractHandler.manager = M('''
         [account]
         dir = {}

@@ -129,7 +129,7 @@ def test_rate_limit_on_certificate_creation(registered_account_dir, http_server,
     m = server.ACMEAbstractHandler.manager = MA(registered_account_dir, validator=http_server)
     authzrs = m.acquire_domain_validations(http_server, domains)
     assert len(authzrs) is 1
-    for i in range(2):
+    for i in range(6):
         certs = m.issue_certificate(csr, authzrs)
         assert len(certs) == 2
     with pytest.raises(exceptions.RateLimited) as e:
