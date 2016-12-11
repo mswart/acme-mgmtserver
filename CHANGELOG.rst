@@ -7,6 +7,12 @@ This page lists all versions with its changes. ACMEMS follows Semantic Versionin
 Version 0
 -------------------------
 
+v0.3.0
+^^^^^^
+
+(Experimental) support for DNS challenges
+
+
 v0.2.0
 ^^^^^^
 
