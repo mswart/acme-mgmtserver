@@ -49,7 +49,7 @@ def gencsr(domains, key):
     return OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_PEM, pem)
 
 
-def signcsr(csrpem, key, period):
+def signcsr(csrpem, key, period, issued_before=None):
     csr = x509.load_pem_x509_csr(csrpem, default_backend())
     builder = x509.CertificateBuilder()
     builder = builder.subject_name(csr.subject)
@@ -59,7 +59,7 @@ def signcsr(csrpem, key, period):
     builder = builder.add_extension(
         x509.BasicConstraints(ca=False, path_length=None), critical=True,
     )
-    builder = builder.not_valid_before(datetime.now() - timedelta(1, 0, 0))
+    builder = builder.not_valid_before(datetime.now() - (issued_before or timedelta(1, 0, 0)))
     builder = builder.not_valid_after(datetime.now() + period)
     cert = builder.sign(
         private_key=key, algorithm=hashes.SHA256(),

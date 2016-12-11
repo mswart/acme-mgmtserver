@@ -66,7 +66,7 @@ class FileStorageImplementor(StorageImplementor):
 
     def add_to_cache(self, csr, cert):
         dir = self.cache_dir(csr)
-        os.makedirs(dir)
+        os.makedirs(dir, exist_ok=True)
         with open(os.path.join(dir, 'csr.pem'), 'bw') as f:
             f.write(csr)
         with open(os.path.join(dir, 'cert.pem'), 'w') as f:
