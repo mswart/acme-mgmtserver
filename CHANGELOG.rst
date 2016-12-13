@@ -7,6 +7,16 @@ This page lists all versions with its changes. ACMEMS follows Semantic Versionin
 Version 0
 -------------------------
 
+v0.3.1
+^^^^^^
+
+Multiple bug fixes:
+
+* Fix auth-block specific storage and verification settings
+* IOError when replace certification in file storage
+* Fix typos in dns01-dnsUpdate verification
+
+
 v0.3.0
 ^^^^^^
 
