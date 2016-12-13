@@ -216,6 +216,7 @@ def test_simple_http_listener():
         listener=127.0.0.1:80
         listener=[::]:80
         ''')
+    assert tuple(config.validators.keys()) == ('http', )
     assert len(config.validators['http'].listeners) is 2
     l = config.validators['http'].listeners
     assert l[0][0] is socket.AF_INET
@@ -226,11 +227,65 @@ def test_simple_http_listener():
     assert l[1][4][1] is 80
 
 
+def test_unix_socket_as_http_listener():
+    with pytest.raises(config.ConfigurationError) as e:
+        parse('''
+            [account]
+            [mgmt]
+            default-verification=http
+            [verification "http"]
+            type=http01
+            listener=/run/acmems/http.sock
+            ''')
+    assert 'unix socket' in str(e)
+
+
+### dns verification
+
+def test_dns01_listener_default_options():
+    config = parse('''
+        [account]
+        acme-server = https://acme.example.org/directory
+        [mgmt]
+        default-verification=dns
+        [verification "dns"]
+        type=dns01-dnsUpdate
+        ''')
+    assert tuple(config.validators.keys()) == ('dns', )
+    v = config.validators['dns']
+    assert v.dns_servers == ['127.0.0.1']
+    assert v.timeout is 5
+    assert v.ttl is 60
+
+
+def test_dns01_listener_with_explicit_options():
+    config = parse('''
+        [account]
+        acme-server = https://acme.example.org/directory
+        [mgmt]
+        default-verification=
+        [verification "dns"]
+        type=dns01-dnsUpdate
+        dns-server = 127.0.0.2
+        timeout = 6
+        ttl = 61
+        ''')
+    assert tuple(config.validators.keys()) == ('dns', )
+    v = config.validators['dns']
+    assert v.dns_servers == ['127.0.0.2']
+    assert v.timeout is 6
+    assert v.ttl is 61
+
+
+#### default verification
+
+
 def test_default_http_listener():
     config = parse('''
         [account]
         [mgmt]
         ''')
+    assert tuple(config.validators.keys()) == ('http', )
     assert len(config.validators['http'].listeners) is 2
     l = config.validators['http'].listeners
     assert l[0][0] is socket.AF_INET
@@ -250,28 +305,18 @@ def test_disable_http_listener():
     assert config.default_validator is False
 
 
-def test_unix_socket_as_http_listener():
-    with pytest.raises(config.ConfigurationError) as e:
-        parse('''
-            [account]
-            [mgmt]
-            default-verification=http
-            [verification "http"]
-            type=http01
-            listener=/run/acmems/http.sock
-            ''')
-    assert 'unix socket' in str(e)
+def test_use_single_verification_as_default():
+    config = parse('''
+        [account]
+        [mgmt]
+        [verification "http234"]
+        type = http01
+        ''')
+    assert tuple(config.validators.keys()) == ('http234', )
+    assert config.default_validator is config.validators['http234']
 
 
 ### storages
-
-def test_implicit_default_storage():
-    config = parse('''
-        [account]
-        acme-server = https://acme.example.org/directory
-        [mgmt]
-        ''')
-    assert set(config.storages) == set(('none',))
 
 
 def test_explict_none_storage():
@@ -299,3 +344,24 @@ def test_not_other_none_storage_options():
             other = test
             ''')
     assert 'other' in str(e)
+
+
+def test_implicit_default_storage():
+    config = parse('''
+        [account]
+        acme-server = https://acme.example.org/directory
+        [mgmt]
+        ''')
+    assert set(config.storages) == set(('none',))
+
+
+def test_use_single_stroage_as_default():
+    config = parse('''
+        [account]
+        [mgmt]
+        [storage "io"]
+        type = file
+        directory = /tmp
+        ''')
+    assert tuple(config.storages.keys()) == ('io', )
+    assert config.default_storage is config.storages['io']

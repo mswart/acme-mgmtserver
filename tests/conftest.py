@@ -42,7 +42,7 @@ def ckey():
 
 @pytest.fixture(scope='session')
 def http_server(request):
-    validator = challenges.setup('http01', (('listener', '127.0.0.1:5002'),))
+    validator = challenges.setup('http01', 'http', (('listener', '127.0.0.1:5002'),))
     services = validator.start()
 
     def fin():
@@ -55,7 +55,7 @@ def http_server(request):
 
 @pytest.fixture(scope='session')
 def dnsboulder_validator(request):
-    validator = challenges.setup('dns01-boulder', ())
+    validator = challenges.setup('dns01-boulder', 'dns', ())
     validator.start()
     return validator
 

@@ -3,19 +3,19 @@ from threading import Thread, Event
 from datetime import datetime, timedelta
 import json
 import urllib.request
-import base64
+import warnings
 
 import acme.client
 
-
-from acmems.config import ConfigurationError
+from acmems.config import ConfigurationError, UnusedOptionWarning
 from acmems.server import ThreadedACMEServerByType, ACMEHTTPHandler
 from acmems import exceptions
 
 
 class ChallengeImplementor():
-    def __init__(self, type, options):
+    def __init__(self, type, name, options):
         self.type = type
+        self.name = name
         self.parse(options)
 
 
@@ -141,8 +141,11 @@ class DnsChallengeDnsUpdateImplementor(DnsChallengeImplementor):
                 self.dns_servers.append(value)
             elif option == 'ttl':
                 self.ttl = int(value)
-            elif option == 'tiemout':
-                self.tiemout = int(value)
+            elif option == 'timeout':
+                self.timeout = int(value)
+            else:
+                warnings.warn('Option unknown [verification "{}"]{} = {}'.format(self.name, option, value),
+                              UnusedOptionWarning, stacklevel=2)
         if self.dns_servers is None:
             self.dns_servers = ['127.0.0.1']
         if self.ttl is None:
@@ -160,7 +163,7 @@ class DnsChallengeDnsUpdateImplementor(DnsChallengeImplementor):
                                 )
         upd.add(entry, self.ttl, 'TXT', value)
         try:
-            response = dns.query.tcp(upd, self.dns_server, timeout=self.timeout)
+            response = dns.query.tcp(upd, self.dns_servers[0], timeout=self.timeout)
             rcode = response.rcode()
             if rcode != dns.rcode.NOERROR:
                 rcode_text = dns.rcode.to_text(rcode)
@@ -181,8 +184,8 @@ implementors = {
 }
 
 
-def setup(type, options):
+def setup(type, name, options):
     try:
-        return implementors[type](type, options)
+        return implementors[type](type, name, options)
     except KeyError:
         raise ConfigurationError('Unsupported challenge type "{}"'.format(type))

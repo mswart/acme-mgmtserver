@@ -4,7 +4,7 @@ import hashlib
 
 import pytest
 
-from acmems import auth, config
+from acmems import auth, config, challenges, storages
 from tests.helpers import gencsrpem
 
 
@@ -28,7 +28,8 @@ def test_reject_for_no_auth_block():
     with a.process('192.0.2.34', {}, '') as p:
         assert p.acceptable() is False
 
-# generall
+
+# general
 
 
 def test_warning_on_unknown_option(a, ckey):
@@ -37,6 +38,48 @@ def test_warning_on_unknown_option(a, ckey):
     assert 'auth "all"' in str(e[0].message)
     assert 'pi' in str(e[0].message)
     assert '192.0.2.34' in str(e[0].message)
+
+
+def test_error_on_unknown_verification(a, ckey):
+    with pytest.raises(config.UnknownVerificationError) as e:
+        a.parse_block('err', [('verification', 'asdfasfd'), ('domain', 'example.org')])
+    assert 'asdfasfd' in str(e)
+
+
+def test_error_on_unknown_storage(a, ckey):
+    with pytest.raises(config.UnknownStorageError) as e:
+        a.parse_block('err', [('storage', 'asdfasfd'), ('domain', 'example.org')])
+    assert 'asdfasfd' in str(e)
+
+
+def test_error_on_no_verification_and_disabled_default_verification(a, ckey):
+    a.config.default_validator = False
+    with pytest.raises(config.UnknownVerificationError) as e:
+        a.parse_block('err', [('domain', 'example.org')])
+    assert 'auth "err"' in str(e)
+    assert 'default' in str(e)
+    assert 'disabled' in str(e)
+
+
+def test_error_on_no_storage_and_disabled_default_one(a, ckey):
+    a.config.default_storage = False
+    with pytest.raises(config.UnknownStorageError) as e:
+        a.parse_block('err', [('domain', 'example.org')])
+    assert 'auth "err"' in str(e)
+    assert 'default' in str(e)
+    assert 'disabled' in str(e)
+
+
+def test_different_validator(a, ckey):
+    a.config.validators['bob'] = bob = challenges.setup('dns01-dnsUpdate', 'bob', ())
+    a.parse_block('err', [('verification', 'bob'), ('domain', 'example.org')])
+    assert a.blocks[0].validator is bob
+
+
+def test_different_storage(a, ckey):
+    a.config.storages['bob'] = bob = storages.setup('none', 'bob', ())
+    a.parse_block('err', [('storage', 'bob'), ('domain', 'example.org')])
+    assert a.blocks[0].storage is bob
 
 
 # all auth

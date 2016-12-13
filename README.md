@@ -146,6 +146,9 @@ domain=*.test.example.org
 
 # CSR must also be signed by HMAC (via a the secret key)
 [auth "mail-secure"]
+# uise special verification and storage
+verification = dns
+storage = file
 ip=198.51.100.21
 hmac_type=sha256
 hmac_key=A1YP67armNf3cBrecyJHdb035

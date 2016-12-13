@@ -10,8 +10,9 @@ from acmems.config import ConfigurationError
 
 
 class StorageImplementor():
-    def __init__(self, type, options):
+    def __init__(self, type, name, options):
         self.type = type
+        self.name = name
         self.parse(options)
 
 
@@ -66,7 +67,7 @@ class FileStorageImplementor(StorageImplementor):
 
     def add_to_cache(self, csr, cert):
         dir = self.cache_dir(csr)
-        os.makedirs(dir)
+        os.makedirs(dir, exist_ok=True)
         with open(os.path.join(dir, 'csr.pem'), 'bw') as f:
             f.write(csr)
         with open(os.path.join(dir, 'cert.pem'), 'w') as f:
@@ -80,8 +81,8 @@ implementors = {
 }
 
 
-def setup(type, options):
+def setup(type, name, options):
     try:
-        return implementors[type](type, options)
+        return implementors[type](type, name, options)
     except KeyError:
         raise ConfigurationError('Unsupported storage type "{}"'.format(type))

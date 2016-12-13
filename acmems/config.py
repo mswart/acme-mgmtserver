@@ -14,6 +14,14 @@ class MissingSectionError(ConfigurationError):
     pass
 
 
+class UnknownVerificationError(ConfigurationError):
+    pass
+
+
+class UnknownStorageError(ConfigurationError):
+    pass
+
+
 class SingletonOptionRedifined(ConfigurationError):
     def __init__(self, section, option, old, new):
         self.section = section
@@ -70,11 +78,13 @@ class Configurator():
         self.parse_account_config(config.pop('account'))
         self.parser_mgmt_config(config.pop('mgmt'))
         special_group_re = re.compile('^(?P<type>(auth|verification|storage)) (?P<opener>"?)(?P<name>.+)(?P=opener)$')
+        auth_blocks = []
         for group, options in config.items():
             match = special_group_re.match(group)
             if match:
                 if match.group('type') == 'auth':
-                    self.auth.parse_block(match.group('name'), options)
+                    # parse auth blocks last to have verification and storage blocks processed
+                    auth_blocks.append((match.group('name'), options))
                 elif match.group('type') == 'verification':
                     self.parse_verification_group(match.group('name'), options)
                 else:
@@ -82,8 +92,12 @@ class Configurator():
             else:
                 warnings.warn('Unknown section name: {0}'.format(group),
                               UnusedSectionWarning, stacklevel=2)
+
         self.setup_default_validator()
         self.setup_default_storage()
+
+        for name, options in auth_blocks:
+            self.auth.parse_block(name, options)
 
     @staticmethod
     def read_data(config):
@@ -102,7 +116,7 @@ class Configurator():
             for line in f:
                 line = line.strip()
                 # ignore comments:
-                if line.startswith('#'):
+                if line.startswith('#') or line.startswith(';'):
                     continue
                 if not line:
                     continue
@@ -186,29 +200,34 @@ class Configurator():
         if option != 'type':
             raise ConfigurationError('A verification must start with the type value!')
         from acmems.challenges import setup
-        self.validators[name] = setup(value, options)
+        self.validators[name] = setup(value, name, options)
 
     def setup_default_validator(self):
-        if self.default_validator is None:
-            self.default_validator = 'http'
-        if not self.validators:
-            from acmems.challenges import setup
-            self.validators['http'] = setup('http01', ())
-            self.validators['dns01-boulder'] = setup('dns01-boulder', ())
-        if self.default_validator is not False:
+        if self.default_validator is False:  # default validator disabled
+            return
+        if self.default_validator:  # defined
             self.default_validator = self.validators[self.default_validator]
+            return
+        if len(self.validators) == 1:  # we use the only defined validator as default
+            self.default_validator = list(self.validators.values())[0]
+        else:  # define a default http storage
+            from acmems.challenges import setup
+            self.default_validator = self.validators['http'] = setup('http01', 'http', ())
 
     def parse_storage_group(self, name, options):
         option, value = options.pop(0)
         if option != 'type':
             raise ConfigurationError('A storage must start with the type value!')
         from acmems.storages import setup
-        self.storages[name] = setup(value, options)
+        self.storages[name] = setup(value, name, options)
 
     def setup_default_storage(self):
-        if self.default_storage is None:
-            self.default_storage = 'none'
-            from acmems.storages import setup
-            self.storages[self.default_storage] = setup('none', ())
-        if self.default_storage is not False:
+        if self.default_storage is False:  # default storage disabled
+            return
+        if self.default_storage:
             self.default_storage = self.storages[self.default_storage]
+        if len(self.storages) == 1:
+            self.default_storage = list(self.storages.values())[0]
+        else:
+            from acmems.storages import setup
+            self.default_storage = self.storages['none'] = setup('none', 'none', ())
