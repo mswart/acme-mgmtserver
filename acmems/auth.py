@@ -29,7 +29,7 @@ class Authenticator():
         self.blocks = []
 
     def parse_block(self, name, options):
-        self.blocks.append(Block(name, options))
+        self.blocks.append(Block(name, options, self.config))
 
     def process(self, client_address, headers, rfile):
         return Processor(self, client_address, headers, rfile)
@@ -114,13 +114,13 @@ class Block():
     ''' One authentication block - combination of authentications
         and list of allowed domains
     '''
-    def __init__(self, name, options):
+    def __init__(self, name, options, config):
         self.name = name
         self.methods = []
         self.domain_matchers = []
         self.validator = None
         self.storage = None
-        self.parse(options)
+        self.parse(options, config)
 
     def possible(self, processor):
         if not self.domain_matchers:
@@ -144,16 +144,26 @@ class Block():
                 return False
         return True
 
-    def parse(self, options):
+    def parse(self, options, config):
         unused_methods = [IPAuthMethod, AllAuthMethod, HmacAuthMethod]
         for option, value in options:
             if option == 'domain':
                 self.domain_matchers.append(value)
                 continue
-            if option == 'validator':
-                self.validator = value.strip()
+            if option == 'verification':
+                try:
+                    self.validator = config.validators[value.strip()]
+                except KeyError:
+                    from acmems.config import UnknownVerificationError
+                    raise UnknownVerificationError('Validator "{}" undefined'.format(value.strip()))
+                continue
             if option == 'storage':
-                self.storage = value.strip()
+                try:
+                    self.storage = config.storages[value.strip()]
+                except KeyError:
+                    from acmems.config import UnknownStorageError
+                    raise UnknownStorageError('Storage "{}" undefined'.format(value.strip()))
+                continue
             for method in self.methods:
                 if option in method.option_names:
                     method.parse(option, value)
@@ -170,6 +180,16 @@ class Block():
                 unused_methods.remove(method)
                 self.methods.append(method())
                 self.methods[-1].parse(option, value)
+        if self.validator is None:
+            self.validator = config.default_validator
+            if self.validator is False:
+                from acmems.config import UnknownVerificationError
+                raise UnknownVerificationError('auth "{}" does not define a validator and the default one is disabled'.format(self.name))
+        if self.storage is None:
+            self.storage = config.default_storage
+            if self.storage is False:
+                from acmems.config import UnknownStorageError
+                raise UnknownStorageError('auth "{}" does not define a storage and the default one is disabled'.format(self.name))
 
 
 class Processor():
@@ -215,8 +235,8 @@ class Processor():
         # 3. final check
         for block in possible_blocks:
             if block.check(self):
-                self.validator = block.validator or self.auth.config.default_validator
-                self.storage = block.storage or self.auth.config.default_storage
+                self.validator = block.validator
+                self.storage = block.storage
                 return True
         return False
 

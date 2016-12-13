@@ -260,7 +260,8 @@ def test_mgmt_complete_one_domain_by_dns(registered_account_dir, http_server, mg
         dir = {}
         acme-server = http://127.0.0.1:4000/directory
         [mgmt]
-        default-verification = dns01-boulder
+        [verification "boulder"]
+        type = dns01-boulder
         [auth "localhost"]
         ip = 127.0.0.0/24
         domain=*

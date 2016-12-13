@@ -12,18 +12,18 @@ from .helpers import gencsrpem, signcsr
 
 @pytest.fixture()
 def file_storage(tmpdir):
-    return storages.setup('file', (('directory', str(tmpdir)),))
+    return storages.setup('file', 'file', (('directory', str(tmpdir)),))
 
 
 class TestFileStorage():
     def test_error_without_directory(self):
         with pytest.raises(config.ConfigurationError) as e:
-            storages.setup('file', ())
+            storages.setup('file', 'file', ())
         assert 'directory' in str(e)
 
     def test_error_on_unknown_option(self, tmpdir):
         with pytest.raises(config.ConfigurationError) as e:
-            storages.setup('file', (('directory', str(tmpdir)), ('unknonw', 'value')))
+            storages.setup('file', 'file', (('directory', str(tmpdir)), ('unknonw', 'value')))
         assert 'unknonw' in str(e)
 
     def test_none_on_unknown_csr(self, file_storage, ckey):

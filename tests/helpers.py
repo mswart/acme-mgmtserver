@@ -16,6 +16,8 @@ def M(configcontent, connect=False, validator=None):
     c = config.Configurator(io.StringIO(configcontent))
     if validator:
         c.default_validator = validator
+        for block in c.auth.blocks:
+            block.validator = validator
     return manager.ACMEManager(c, connect=connect)
 
 

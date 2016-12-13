@@ -16,3 +16,5 @@ finally:
 subprocess.check_call(['openssl', 'x509', '-in', 'tests/integration/work/domain-201512.pem', '-noout', '-text'])
 
 subprocess.check_call(['cmp', 'tests/integration/work/domain-201512.pem', 'tests/integration/work/domain-201512-2.pem'])
+
+subprocess.check_call(['openssl', 'x509', '-in', 'tests/integration/work/dns-201512.pem', '-noout', '-text'])

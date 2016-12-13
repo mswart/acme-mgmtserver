@@ -10,8 +10,9 @@ from acmems.config import ConfigurationError
 
 
 class StorageImplementor():
-    def __init__(self, type, options):
+    def __init__(self, type, name, options):
         self.type = type
+        self.name = name
         self.parse(options)
 
 
@@ -80,8 +81,8 @@ implementors = {
 }
 
 
-def setup(type, options):
+def setup(type, name, options):
     try:
-        return implementors[type](type, options)
+        return implementors[type](type, name, options)
     except KeyError:
         raise ConfigurationError('Unsupported storage type "{}"'.format(type))
