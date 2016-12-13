@@ -1,3 +1,10 @@
+acme-mgmtserver (0.3.1-1) xenial; urgency=medium
+
+  * travis: do not test debian branches + tags
+  * Merge upstream 0.3.1 release
+
+ -- Malte Swart <packages@devtation.de>  Tue, 13 Dec 2016 01:50:24 +0100
+
 acme-mgmtserver (0.3.0-1) xenial; urgency=medium
 
   * Merge new 0.3.0 release
