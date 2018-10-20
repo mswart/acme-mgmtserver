@@ -63,7 +63,7 @@ def test_register(tmpdir):
         [mgmt]'''.format(tmpdir))
     m.create_private_key()
     m.init_client()
-    m.register(emails=['acme-{}@example.org'.format(os.getpid())])
+    m.register(emails=['acme-{}@example.test'.format(os.getpid())])
     tos = m.tos_agreement_required()
     with pytest.raises(exceptions.NeedToAgreeToTOS) as e:
         m.refresh_registration()

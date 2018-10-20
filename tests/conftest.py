@@ -25,7 +25,7 @@ def registered_account_dir(tmpdir_factory):
         [mgmt]'''.format(account_dir))
     m.create_private_key()
     m.init_client()
-    m.register(emails=['acme-{}-permanent@example.org'.format(os.getpid())])
+    m.register(emails=['acme-{}-permanent@example.test'.format(os.getpid())])
     if m.tos_agreement_required():
         m.accept_terms_of_service(m.tos_agreement_required())
     return account_dir
