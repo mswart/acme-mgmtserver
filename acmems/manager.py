@@ -6,10 +6,12 @@ import OpenSSL.crypto
 
 import acme.client
 import acme.messages
-import acme.jose
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization as pem_serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+import josepy.jwk
+import josepy.util
+
 
 from acmems import exceptions
 
@@ -71,7 +73,7 @@ class ACMEManager():
             raise exceptions.AccountError('Key {} not found'
                                           .format(self.config.keyfile))
         # TODO - handle IOError; keyfile without valid key
-        self.key = acme.jose.JWKRSA(key=acme.jose.ComparableRSAKey(key))
+        self.key = josepy.jwk.JWKRSA(key=josepy.util.ComparableRSAKey(key))
 
     def create_private_key(self, force=False, key_size=4096):
         ''' create new private key to be used for identify ourself against
@@ -309,7 +311,7 @@ class ACMEManager():
         # Request a certificate using the CSR and some number of domain validation challenges.
         self.log("Requesting a certificate.")
         try:
-            cert_response = self.client.request_issuance(acme.jose.ComparableX509(csr), authzrs)
+            cert_response = self.client.request_issuance(josepy.util.ComparableX509(csr), authzrs)
         except acme.messages.Error as e:
             if e.typ == "urn:acme:error:rateLimited":
                 raise exceptions.RateLimited(e.detail)

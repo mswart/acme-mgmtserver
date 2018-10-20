@@ -2,7 +2,8 @@ import os
 import shutil
 
 import pytest
-import acme.jose
+import acme
+import josepy.jwk
 
 from acmems import exceptions, server
 from tests.helpers import M, MA, gencsr
@@ -15,7 +16,7 @@ def test_key_load():
         dir = tests/support/valid
         [mgmt]''')
     m.load_private_key()
-    assert type(m.key) is acme.jose.JWKRSA
+    assert type(m.key) is josepy.jwk.JWKRSA
     assert m.key.thumbprint() == b'\xfe\xb1\xaa\xf8\xc8&\xb6v\x1f\xd3Jc\xbc\x80\xb0ie\xf6\xf6\xb9x$\x14\xf9\x1b\x99{\xe6\x91L\x89\x9e'
 
 
@@ -35,7 +36,7 @@ def test_create_key(tmpdir):
         dir = {}
         [mgmt]'''.format(tmpdir))
     m.create_private_key()
-    assert type(m.key) is acme.jose.JWKRSA
+    assert type(m.key) is josepy.jwk.JWKRSA
 
 
 def test_override_key(tmpdir):
@@ -48,7 +49,7 @@ def test_override_key(tmpdir):
     assert 'force' in str(e)
     assert 'Existing key is only override if I am forced to' in str(e)
     m.create_private_key(force=True)
-    assert type(m.key) is acme.jose.JWKRSA
+    assert type(m.key) is josepy.jwk.JWKRSA
     assert m.key.thumbprint() != b'\xfe\xb1\xaa\xf8\xc8&\xb6v\x1f\xd3Jc\xbc\x80\xb0ie\xf6\xf6\xb9x$\x14\xf9\x1b\x99{\xe6\x91L\x89\x9e'
 
 
@@ -80,7 +81,7 @@ def test_refresh_registration_for_unknown_key():
         acme-server = http://127.0.0.1:4000/directory
         [mgmt]''')
     m.load_private_key()
-    assert type(m.key) is acme.jose.JWKRSA
+    assert type(m.key) is josepy.jwk.JWKRSA
     m.init_client()
     assert type(m.client) is acme.client.Client
     with pytest.raises(exceptions.AccountError) as e:
