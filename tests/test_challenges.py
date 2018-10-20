@@ -39,7 +39,7 @@ def test_rate_limit_on_certificate_creation_by_dns(registered_account_dir, dnsbo
     m = server.ACMEAbstractHandler.manager = MA(registered_account_dir, validator=dnsboulder_validator)
     authzrs = m.acquire_domain_validations(dnsboulder_validator, domains)
     assert len(authzrs) is 1
-    for i in range(6):
+    for i in range(5):
         certs = m.issue_certificate(csr, authzrs)
         assert len(certs) == 2
     with pytest.raises(exceptions.RateLimited) as e:
