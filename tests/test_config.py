@@ -95,7 +95,7 @@ def test_simple_mgmt_listener():
         acme-server = https://acme.example.org/directory
         [mgmt]
         listener=127.0.0.1:13
-        listener=[fe80::abba:abba%eth0]:1380
+        listener=[fe80::abba:abba%lo]:1380
         ''')
     assert len(config.mgmt_listeners) is 2
     l = config.mgmt_listeners
@@ -103,7 +103,7 @@ def test_simple_mgmt_listener():
     assert l[0][4][0] == '127.0.0.1'
     assert l[0][4][1] == 13
     assert l[1][0] is socket.AF_INET6
-    assert l[1][4][0] == 'fe80::abba:abba%eth0'
+    assert l[1][4][0] == 'fe80::abba:abba%lo'
     assert l[1][4][1] == 1380
 
 
