@@ -52,23 +52,20 @@ class HttpChallengeImplementor(ChallengeImplementor):
         return services
 
     def new_authorization(self, authz, client, key, domain):
-        for combination in authz.combinations:
-            if len(combination) == 1:
-                challenger = authz.challenges[combination[0]]
-                challenge = challenger.chall
-                if isinstance(challenge, acme.challenges.HTTP01):
-                    # store (and deliver) needed response for challenge
-                    content = challenge.validation(key)
-                    event = Event()
-                    self.responses.setdefault(domain, {})
-                    self.responses[domain][challenge.path] = (content, event)
+        for challenger in authz.challenges:
+            challenge = challenger.chall
+            if isinstance(challenge, acme.challenges.HTTP01):
+                # store (and deliver) needed response for challenge
+                content = challenge.validation(key)
+                event = Event()
+                self.responses.setdefault(domain, {})
+                self.responses[domain][challenge.path] = (content, event)
 
-                    # answer challenges / give ACME server go to check challenge
-                    resp = challenge.response(key)
-                    client.answer_challenge(challenger, resp)
+                # answer challenges / give ACME server go to check challenge
+                resp = challenge.response(key)
+                client.answer_challenge(challenger, resp)
 
-                    # we can wait until this challenge is first requested ...
-                    raise exceptions.AuthorizationNotYetRequested(event)
+                return True
         else:
             return False
 
@@ -90,22 +87,66 @@ class DnsChallengeImplementor(ChallengeImplementor):
         pass
 
     def new_authorization(self, authz, client, key, domain):
-        for combination in authz.combinations:
-            if len(combination) == 1:
-                challenger = authz.challenges[combination[0]]
-                challenge = challenger.chall
-                if isinstance(challenge, acme.challenges.DNS01):
-                    response, validation = challenge.response_and_validation(key)
+        for challenger in authz.challenges:
+            challenge = challenger.chall
+            if isinstance(challenge, acme.challenges.DNS01):
+                response, validation = challenge.response_and_validation(key)
 
-                    self.add_entry(challenge.validation_domain_name(domain) + '.', validation)
+                self.add_entry(challenge.validation_domain_name(domain) + '.', validation)
 
-                    # answer challenges / give ACME server go to check challenge
-                    client.answer_challenge(challenger, response)
+                # answer challenges / give ACME server go to check challenge
+                client.answer_challenge(challenger, response)
 
-                    # we can wait until this challenge is first requested ...
-                    raise exceptions.AuthorizationNotYetProcessed(datetime.now() + timedelta(seconds=2))
+                return True
         else:
             return False
+
+
+class DnsChallengeServerImplementor(DnsChallengeImplementor):
+    def parse(self, options):
+        self.listeners = None
+        for option, value in options:
+            if option == 'listener':
+                if self.listeners is None:
+                    self.listeners = []
+                if value == '':  # disable listener
+                    continue
+                if ':' not in value:
+                    raise ConfigurationError('unix socket are currenlty not supported as listeners')
+                host, port = value.rsplit(':', 1)
+                if host[0] == '[' and host[-1] == ']':
+                    host = host[1:-1]
+                self.listeners += socket.getaddrinfo(host, int(port), proto=socket.IPPROTO_TCP)
+        if self.listeners is None:
+            self.listeners = socket.getaddrinfo('0.0.0.0', 1353, proto=socket.IPPROTO_TCP)
+        if len(self.listeners) > 1:
+            raise ConfigurationError('For now only one listener is supported!')
+
+    def start(self):
+        import dnslib.server
+        self.responses = {}
+        for dns_listen in self.listeners:
+            server = dnslib.server.DNSServer(self, port=dns_listen[4][1], address=dns_listen[4][0])
+            server.start_thread()
+
+    def resolve(self, request, handler):
+        import dnslib
+        question = request.q
+        lookup = (question.qname, question.qclass, question.qtype)
+        reply = request.reply()
+        if lookup in self.responses:
+            reply.add_answer(dnslib.RR(question.qname, question.qtype,
+                                       rdata=self.responses[lookup], ttl=5))
+        elif question.qtype == dnslib.QTYPE.A:
+            reply.add_answer(dnslib.RR(question.qname, question.qtype,
+                                       rdata=dnslib.A('127.0.0.1'), ttl=5))
+        else:
+            reply.header.rcode = dnslib.RCODE.NXDOMAIN
+        return reply
+
+    def add_entry(self, entry, value):
+        import dnslib
+        self.responses[(dnslib.DNSLabel(entry), dnslib.CLASS.IN, dnslib.QTYPE.TXT)] = dnslib.TXT(value)
 
 
 class DnsChallengeBoulderImplementor(DnsChallengeImplementor):
@@ -180,6 +221,7 @@ class DnsChallengeDnsUpdateImplementor(DnsChallengeImplementor):
 implementors = {
     'http01': HttpChallengeImplementor,
     'dns01-boulder': DnsChallengeBoulderImplementor,
+    'dns01-server': DnsChallengeServerImplementor,
     'dns01-dnsUpdate': DnsChallengeDnsUpdateImplementor,
 }
 

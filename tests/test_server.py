@@ -55,7 +55,7 @@ def test_mgmt_reject_sign_with_wrong_ip(http_server, mgmt_server, ckey):
     server.ACMEAbstractHandler.manager = M('''
         [account]
         dir = tests/support/valid
-        acme-server = http://127.0.0.1:4000/directory
+        acme-server = http://127.0.0.1:4001/directory
         [mgmt]
         [auth "localhost"]
         ip = 127.0.0.0/24
@@ -71,7 +71,7 @@ def test_mgmt_reject_correct_ip_but_missing_sign(http_server, mgmt_server, ckey)
     server.ACMEAbstractHandler.manager = M('''
         [account]
         dir = tests/support/valid
-        acme-server = http://127.0.0.1:4000/directory
+        acme-server = http://127.0.0.1:4001/directory
         [mgmt]
         [auth "localhost"]
         ip = 127.0.0.0/24
@@ -89,7 +89,7 @@ def test_mgmt_reject_correct_ip_but_wrong_hmac_key(http_server, mgmt_server, cke
     server.ACMEAbstractHandler.manager = M('''
         [account]
         dir = tests/support/valid
-        acme-server = http://127.0.0.1:4000/directory
+        acme-server = http://127.0.0.1:4001/directory
         [mgmt]
         [auth "localhost"]
         ip = 127.0.0.0/24
@@ -110,7 +110,7 @@ def test_mgmt_reject_correct_ip_but_wrong_hmac_type(http_server, mgmt_server, ck
     server.ACMEAbstractHandler.manager = M('''
         [account]
         dir = tests/support/valid
-        acme-server = http://127.0.0.1:4000/directory
+        acme-server = http://127.0.0.1:4001/directory
         [mgmt]
         [auth "localhost"]
         ip = 127.0.0.0/24
@@ -132,7 +132,7 @@ def test_mgmt_reject_too_long_csr(registered_account_dir, http_server, mgmt_serv
     server.ACMEAbstractHandler.manager = M('''
         [account]
         dir = {}
-        acme-server = http://127.0.0.1:4000/directory
+        acme-server = http://127.0.0.1:4001/directory
         [mgmt]
         max-size = 512
         [auth "localhost"]
@@ -157,7 +157,7 @@ def test_mgmt_reject_invalid_csr(registered_account_dir, http_server, mgmt_serve
     server.ACMEAbstractHandler.manager = M('''
         [account]
         dir = {}
-        acme-server = http://127.0.0.1:4000/directory
+        acme-server = http://127.0.0.1:4001/directory
         [mgmt]
         [auth "localhost"]
         ip = 127.0.0.0/24
@@ -181,7 +181,7 @@ def test_mgmt_complete_multiple_domains(registered_account_dir, http_server, mgm
     server.ACMEAbstractHandler.manager = M('''
         [account]
         dir = {}
-        acme-server = http://127.0.0.1:4000/directory
+        acme-server = http://127.0.0.1:4001/directory
         [mgmt]
         [auth "localhost"]
         ip = 127.0.0.0/24
@@ -258,7 +258,7 @@ def test_mgmt_complete_one_domain_by_dns(registered_account_dir, http_server, mg
     server.ACMEAbstractHandler.manager = M('''
         [account]
         dir = {}
-        acme-server = http://127.0.0.1:4000/directory
+        acme-server = http://127.0.0.1:4001/directory
         [mgmt]
         [verification "boulder"]
         type = dns01-boulder

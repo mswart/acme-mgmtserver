@@ -81,8 +81,8 @@ class ACMEMgmtHandler(ACMEAbstractHandler):
                 if cached_certs:
                     self.send_data(cached_certs)
                     return
-                authzrs = self.manager.acquire_domain_validations(p.validator, p.dns_names)
-                certs = '\n'.join(self.manager.issue_certificate(p.csr, authzrs))
+                order = self.manager.acquire_domain_validations(p.validator, p.csrpem)
+                certs = self.manager.issue_certificate(order)
                 print(certs)
                 p.storage.add_to_cache(p.csrpem, certs)
                 self.send_data(certs)

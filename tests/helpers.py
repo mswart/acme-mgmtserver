@@ -24,7 +24,7 @@ def M(configcontent, connect=False, validator=None):
 def MA(dir, connect=True, validator=None):
     return M('''[account]
         dir = {}
-        acme-server = http://127.0.0.1:4000/directory
+        acme-server = http://127.0.0.1:4001/directory
         [mgmt]
         [auth "all"]
         all=yes
@@ -37,11 +37,10 @@ def gencsrpem(domains, key):
     csr = x509.CertificateSigningRequestBuilder().subject_name(x509.Name([
         x509.NameAttribute(NameOID.COMMON_NAME, domains[0]),
     ]))
-    if len(domains) > 1:
-        csr = csr.add_extension(
-            x509.SubjectAlternativeName([x509.DNSName(domain) for domain in domains]),
-            critical=False,
-        )
+    csr = csr.add_extension(
+        x509.SubjectAlternativeName([x509.DNSName(domain) for domain in domains]),
+        critical=False,
+    )
     csr = csr.sign(key, hashes.SHA256(), default_backend())
     return csr.public_bytes(pem_serialization.Encoding.PEM)
 

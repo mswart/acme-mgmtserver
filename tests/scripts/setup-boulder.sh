@@ -16,7 +16,7 @@ docker-compose up -d
 echo 'waiting for boulder to be functional ...'
 
 while true; do
-  curl http://127.0.0.1:4000/directory && break
+  curl http://127.0.0.1:4001/directory && break
   sleep 1
   if [[ "$SECONDS" -gt 300 ]]; then
     echo 'setup took more than 5 minutes, give up  :-('

@@ -27,33 +27,6 @@ class ChallengeFailed(AcmeException):
         return "The challenge for {} failed: {}.".format(self.domain, self.message)
 
 
-class ChallengesUnknownStatus(AcmeException):
-    ''' We do not known the status of the challenge. No clue what to do '''
-    pass
-
-
-class AuthorizationNotYetProcessed(AcmeException):
-    ''' The authorization is be processed; until the next refresh it should
-        at least be wait until `~wait_until`
-
-        :ivar datetime.datetime wait_until: first allowed retry time
-    '''
-    def __init__(self, wait_until):
-        self.wait_until = wait_until
-
-
-class AuthorizationNotYetRequested(AcmeException):
-    ''' The newly created authorization challenge, was installed, but has not
-        yet been requested by any client and is therefore currently pending
-        or invalid.
-
-        :ivar threading.Event event: event that will be signaled if someone
-            requests the challenge.
-    '''
-    def __init__(self, event):
-        self.event = event
-
-
 class RateLimited(AcmeException):
     ''' To many requests '''
     pass

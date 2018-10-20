@@ -21,13 +21,11 @@ def registered_account_dir(tmpdir_factory):
     account_dir = tmpdir_factory.mktemp('account')
     m = M('''[account]
         dir = {}
-        acme-server = http://127.0.0.1:4000/directory
+        acme-server = http://127.0.0.1:4001/directory
         [mgmt]'''.format(account_dir))
     m.create_private_key()
     m.init_client()
-    m.register(emails=['acme-{}-permanent@example.test'.format(os.getpid())])
-    if m.tos_agreement_required():
-        m.accept_terms_of_service(m.tos_agreement_required())
+    m.register(emails=['acme-{}-permanent@example.test'.format(os.getpid())], tos_agreement=True)
     return account_dir
 
 
@@ -58,6 +56,13 @@ def http_server(request):
 @pytest.fixture(scope='session')
 def dnsboulder_validator(request):
     validator = challenges.setup('dns01-boulder', 'dns', ())
+    validator.start()
+    return validator
+
+
+@pytest.fixture(scope='session')
+def dnslib_validator(request):
+    validator = challenges.setup('dns01-server', 'dns', (('listener', '127.0.0.1:1053'),))
     validator.start()
     return validator
 
