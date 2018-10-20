@@ -233,7 +233,7 @@ class ACMEManager():
         elif authz.status.name == 'invalid':
             message = '; '.join(c.error.detail
                                 for c in authz.challenges
-                                if c.status.name == 'invalid')
+                                if c.status.name == 'invalid' and c.error)
             raise exceptions.ChallengeFailed(domain, message, authzr.uri)
         elif authz.status.name in ('pending', 'processing'):
             # validation in process; check for updates ...
