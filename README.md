@@ -64,9 +64,7 @@ ACMEMS can instrument DNS servers to serve the needed `TXT` records to validate 
 
 ### Debian Packages
 
-My preferred installation method are distribution packages. `python-acme` and `pyopenssl` are needed in as of 2015Q4 new versions. It is time-consuming to backport all needed dependencies. Therefore I currently only maintain packages for Ubuntu 16.04 LTS Xenial in my own [PPA](https://launchpad.net/~malte.swart/+archive/ubuntu/acme). The dependencies were backported to `jessie-backports`, so the PPA should also work with `jessie-backports`.
-
-To use `DNS01` challenge `python-acme` >= 0.9 is needed. The PPA contains a backported version.
+My preferred installation method are distribution packages. I try to published a packaged version in my own [PPA](https://launchpad.net/~malte.swart/+archive/ubuntu/acme). To goal is to support the current LTS version and the previous version for a upgrade period. The software dependencies should be directly available as distribution packages.
 
 ### PyPI
 

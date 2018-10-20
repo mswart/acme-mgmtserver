@@ -103,8 +103,11 @@ def test_simple_mgmt_listener():
     assert l[0][4][0] == '127.0.0.1'
     assert l[0][4][1] == 13
     assert l[1][0] is socket.AF_INET6
-    assert l[1][4][0] == 'fe80::abba:abba%lo'
+    # Since Python 3.7, the interface name is removed as the interface number
+    # is stored as fourth value in the tuple
+    assert l[1][4][0] in ['fe80::abba:abba%lo', 'fe80::abba:abba']
     assert l[1][4][1] == 1380
+    assert l[1][4][3] == socket.if_nametoindex('lo')
 
 
 def test_default_mgmt_listener():
