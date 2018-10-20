@@ -37,7 +37,7 @@ open127001 = urllib.request.build_opener(BindingHTTPHandler(('127.0.0.1', 0)))
 def test_for_404_for_unknown_requests(http_server):
     server.ACMEAbstractHandler.manager = MA('tests/support/valid/', connect=False)
     with pytest.raises(urllib.error.HTTPError) as e:
-        urllib.request.urlopen('http://127.0.0.1:5002/file_not_found')
+        urllib.request.urlopen('http://{}:5002/file_not_found'.format(os.getenv('FAKE_DNS', '127.0.0.1')))
     assert e.value.code == 404
 
 

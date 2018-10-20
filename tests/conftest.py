@@ -42,7 +42,9 @@ def ckey():
 
 @pytest.fixture(scope='session')
 def http_server(request):
-    validator = challenges.setup('http01', 'http', (('listener', '127.0.0.1:5002'),))
+    validator = challenges.setup('http01', 'http',
+        (('listener', os.getenv('FAKE_DNS', '127.0.0.1') + ':5002'),)
+    )
     services = validator.start()
 
     def fin():

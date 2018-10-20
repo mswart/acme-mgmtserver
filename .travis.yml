@@ -6,16 +6,15 @@ python:
 sudo: required
 dist: trusty
 install:
-  - sudo tests/scripts/setup-dependencies.sh
   - tests/scripts/setup-boulder.sh
   - pip install -r requirements.txt
 services:
-  - rabbitmq
+  - docker
 script:
-  - py.test
+  - tests/scripts/with-env.sh py.test --tb=short
   - tests/integration/register.sh
   - tests/integration/gencert.py
-after_script: cat ~/build/go/src/github.com/letsencrypt/boulder/nohup.out
+after_script: tests/scripts/logs-boulder.sh
 deploy:
   provider: pypi
   user: mswart
