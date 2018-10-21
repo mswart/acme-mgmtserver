@@ -106,14 +106,14 @@ class ACMEManager():
 
     def load_directory(self):
         self.directory = acme.messages.Directory.from_json(
-            acme.client.ClientNetwork(None).get(self.config.acme_server).json()
+            acme.client.ClientNetwork(None, verify_ssl=os.getenv('ACME_CAFILE', True)).get(self.config.acme_server).json()
         )
 
     def init_client(self):
         ''' create ACME client
         '''
         self.directory or self.load_directory()
-        net = acme.client.ClientNetwork(self.key)
+        net = acme.client.ClientNetwork(self.key, verify_ssl=os.getenv('ACME_CAFILE', True))
         directory = acme.messages.Directory.from_json(
             net.get(self.config.acme_server).json()
         )
@@ -128,7 +128,10 @@ class ACMEManager():
         try:
             self.registration = self.client.new_account(resource)
         except acme.messages.Error as err:
-            if err.typ == 'urn:ietf:params:acme:error:malformed' and 'must agree to terms of service' in err.detail:
+            if err.typ == 'urn:ietf:params:acme:error:agreementRequired':
+                raise exceptions.NeedToAgreeToTOS(self.client.directory.meta.terms_of_service)
+            elif err.typ == 'urn:ietf:params:acme:error:malformed' and 'must agree to terms of service' in err.detail:
+                # fallback for boulder :-(
                 raise exceptions.NeedToAgreeToTOS(self.client.directory.meta.terms_of_service)
             raise
         self.dump_registration()

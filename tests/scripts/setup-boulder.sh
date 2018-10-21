@@ -2,14 +2,12 @@
 set -e
 
 export FAKE_DNS=$(ip addr show docker0 | awk 'match($0, /([0-9.]+)\/[0-9]+/, a) { print a[1] }')
-sed -i -e s/127.0.0.1:5002/${FAKE_DNS}:5002/ configs/integration.ini
+sed -i -e s/127.0.0.1:5002/${FAKE_DNS}:5002/ configs/integration-boulder.ini
 
 export GOPATH=~/build/go
 mkdir -p $GOPATH/src/github.com/letsencrypt/
 git clone git://github.com/letsencrypt/boulder.git $GOPATH/src/github.com/letsencrypt/boulder
 cd $GOPATH/src/github.com/letsencrypt/boulder
-
-sed -i -e 's/127.0.0.1/${FAKE_DNS}/' docker-compose.yml
 
 docker-compose up -d
 

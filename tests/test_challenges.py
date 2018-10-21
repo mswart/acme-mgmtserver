@@ -8,11 +8,10 @@ from tests.helpers import MA, gencsrpem
 
 ### domain verificateion
 
-@pytest.mark.boulder
-def test_auto_domain_verification_by_dns(registered_account_dir, dnsboulder_validator, ckey):
-    server.ACMEAbstractHandler.manager = MA(registered_account_dir, validator=dnsboulder_validator)
+def test_auto_domain_verification_by_dns(backend, dnsboulder_validator, ckey):
+    m = backend.registered_manager(validator=dnsboulder_validator)
     csr = gencsrpem(['www.example.com', 'mail.example.com'], ckey)
-    orderr = server.ACMEAbstractHandler.manager.acquire_domain_validations(dnsboulder_validator, csr)
+    orderr = m.acquire_domain_validations(dnsboulder_validator, csr)
     assert len(orderr.authorizations) is 2
     assert orderr.authorizations[0].body.status.name == 'valid'
     assert orderr.authorizations[1].body.status.name == 'valid'
@@ -21,11 +20,10 @@ def test_auto_domain_verification_by_dns(registered_account_dir, dnsboulder_vali
 
 ### certificate creation
 
-@pytest.mark.boulder
-def test_certificate_creation_by_dns(registered_account_dir, dnsboulder_validator, ckey):
+def test_certificate_creation_by_dns(backend, dnsboulder_validator, ckey):
     domains = ['www.example{}.org'.format(os.getpid()), 'mail.example{}.org'.format(os.getpid())]
     csr = gencsrpem(domains, ckey)
-    m = server.ACMEAbstractHandler.manager = MA(registered_account_dir, validator=dnsboulder_validator)
+    m = backend.registered_manager(validator=dnsboulder_validator)
     orderr = m.acquire_domain_validations(dnsboulder_validator, csr)
     assert len(orderr.authorizations) is 2
     certs = m.issue_certificate(orderr)
@@ -33,11 +31,12 @@ def test_certificate_creation_by_dns(registered_account_dir, dnsboulder_validato
     assert '-----END CERTIFICATE-----' in certs
 
 
-@pytest.mark.boulder
-def test_rate_limit_on_certificate_creation_by_dns(registered_account_dir, dnsboulder_validator, ckey):
+def test_rate_limit_on_certificate_creation_by_dns(backend, dnsboulder_validator, ckey):
+    if backend.name == 'pebble':
+        return pytest.skip('Rate limiting is not implemented in pebble!')
     domains = ['dnsexample-rate{}.org'.format(os.getpid())]
     csr = gencsrpem(domains, ckey)
-    m = server.ACMEAbstractHandler.manager = MA(registered_account_dir, validator=dnsboulder_validator)
+    m = backend.registered_manager(validator=dnsboulder_validator)
     for i in range(5):
         orderr = m.acquire_domain_validations(dnsboulder_validator, csr)
         assert len(orderr.authorizations) is 1

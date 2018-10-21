@@ -1,3 +1,4 @@
+import os
 import socket
 from threading import Thread, Event
 from datetime import datetime, timedelta
@@ -139,7 +140,7 @@ class DnsChallengeServerImplementor(DnsChallengeImplementor):
                                        rdata=self.responses[lookup], ttl=5))
         elif question.qtype == dnslib.QTYPE.A:
             reply.add_answer(dnslib.RR(question.qname, question.qtype,
-                                       rdata=dnslib.A('127.0.0.1'), ttl=5))
+                                       rdata=dnslib.A(os.getenv('FAKE_DNS', '127.0.0.1')), ttl=5))
         else:
             reply.header.rcode = dnslib.RCODE.NXDOMAIN
         return reply

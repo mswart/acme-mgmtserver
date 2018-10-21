@@ -55,38 +55,35 @@ def test_override_key(tmpdir):
 
 ### register
 
-@pytest.mark.boulder
-def test_register_with_general_tos(tmpdir):
+def test_register_with_general_tos(backend, tmpdir):
     m = M('''[account]
         dir = {}
-        acme-server = http://127.0.0.1:4001/directory
-        [mgmt]'''.format(tmpdir))
+        acme-server = {}
+        [mgmt]'''.format(tmpdir, backend.endpoint))
     m.create_private_key()
     m.init_client()
-    assert m.tos_agreement_required().startswith('http://') or m.tos_agreement_required().startswith('https://')
+    assert m.tos_agreement_required().startswith(backend.tos_prefix)
     m.register(emails=['acme-{}@example.test'.format(os.getpid())], tos_agreement=True)
     assert not m.tos_agreement_required()
 
 
-@pytest.mark.boulder
-def test_register_with_specific_tos(tmpdir):
+def test_register_with_specific_tos(backend, tmpdir):
     m = M('''[account]
         dir = {}
-        acme-server = http://127.0.0.1:4001/directory
-        [mgmt]'''.format(tmpdir))
+        acme-server = {}
+        [mgmt]'''.format(tmpdir, backend.endpoint))
     m.create_private_key()
     m.init_client()
-    assert m.tos_agreement_required().startswith('http://') or m.tos_agreement_required().startswith('https://')
+    assert m.tos_agreement_required().startswith(backend.tos_prefix)
     m.register(emails=['acme-{}@example.test'.format(os.getpid())], tos_agreement=m.tos_agreement_required())
     assert not m.tos_agreement_required()
 
 
-@pytest.mark.boulder
-def test_register_without_tos_agreement(tmpdir):
+def test_register_without_tos_agreement(backend, tmpdir):
     m = M('''[account]
         dir = {}
-        acme-server = http://127.0.0.1:4001/directory
-        [mgmt]'''.format(tmpdir))
+        acme-server = {}
+        [mgmt]'''.format(tmpdir, backend.endpoint))
     m.create_private_key()
     m.init_client()
     assert m.tos_agreement_required()
@@ -94,12 +91,11 @@ def test_register_without_tos_agreement(tmpdir):
         m.register(emails=['acme-{}@example.test'.format(os.getpid())], tos_agreement=False)
 
 
-@pytest.mark.boulder
-def test_register_ignoring_tos_agreement(tmpdir):
+def test_register_ignoring_tos_agreement(backend, tmpdir):
     m = M('''[account]
         dir = {}
-        acme-server = http://127.0.0.1:4001/directory
-        [mgmt]'''.format(tmpdir))
+        acme-server = {}
+        [mgmt]'''.format(tmpdir, backend.endpoint))
     m.create_private_key()
     m.init_client()
     assert m.tos_agreement_required()
@@ -109,12 +105,11 @@ def test_register_ignoring_tos_agreement(tmpdir):
 
 ### refresh registration
 
-@pytest.mark.boulder
-def test_refresh_registration_for_unknown_key():
+def test_refresh_registration_for_unknown_key(backend):
     m = M('''[account]
         dir = tests/support/valid
-        acme-server = http://127.0.0.1:4001/directory
-        [mgmt]''')
+        acme-server = {}
+        [mgmt]'''.format(backend.endpoint))
     m.load_private_key()
     assert type(m.key) is josepy.jwk.JWKRSA
     m.init_client()
@@ -126,11 +121,10 @@ def test_refresh_registration_for_unknown_key():
 
 ### domain verificateion
 
-@pytest.mark.boulder
-def test_auto_domain_verification(registered_account_dir, http_server, ckey):
-    server.ACMEAbstractHandler.manager = MA(registered_account_dir, validator=http_server)
+def test_auto_domain_verification(backend, http_server, ckey):
+    m = backend.registered_manager(validator=http_server)
     csr = gencsrpem(['www.example.com', 'mail.example.com'], ckey)
-    orderr = server.ACMEAbstractHandler.manager.acquire_domain_validations(http_server, csr)
+    orderr = m.acquire_domain_validations(http_server, csr)
     assert len(orderr.authorizations) is 2
     assert orderr.authorizations[0].body.status.name == 'valid'
     assert orderr.authorizations[1].body.status.name == 'valid'
@@ -138,33 +132,35 @@ def test_auto_domain_verification(registered_account_dir, http_server, ckey):
         == ['mail.example.com', 'www.example.com']
 
 
-@pytest.mark.boulder
-def test_invalid_domain_verification(registered_account_dir, http_server, ckey):
-    m = server.ACMEAbstractHandler.manager = MA(registered_account_dir, validator=http_server)
+def test_invalid_domain_verification(backend, http_server, ckey):
+    if backend.name == 'pebble':
+        return pytest.skip('Rate limiting is not implemented in pebble!')
+    m = backend.registered_manager(validator=http_server)
     csr = gencsrpem(['test.invalid'], ckey)
     with pytest.raises(exceptions.InvalidDomainName) as e:
         m.acquire_domain_validations(http_server, csr)
-    assert 'test.invalid' in str(e)
+    # todo: with v2 it is not possible to extract with domain is the issue
+    # assert 'test.invalid' in str(e)
 
 
 ### certificate creation
 
-@pytest.mark.boulder
-def test_certificate_creation(registered_account_dir, http_server, ckey):
+def test_certificate_creation(backend, http_server, ckey):
     domains = ['www.example{}.org'.format(os.getpid()), 'mail.example{}.org'.format(os.getpid())]
     csr = gencsrpem(domains, ckey)
-    m = server.ACMEAbstractHandler.manager = MA(registered_account_dir, validator=http_server)
+    m = backend.registered_manager(validator=http_server)
     orderr = m.acquire_domain_validations(http_server, csr)
     assert len(orderr.authorizations) is 2
     certs = m.issue_certificate(orderr)
     assert len(certs.split('\n\n')) == 2
 
 
-@pytest.mark.boulder
-def test_rate_limit_on_certificate_creation(registered_account_dir, http_server, ckey):
+def test_rate_limit_on_certificate_creation(backend, http_server, ckey):
+    if backend.name == 'pebble':
+        return pytest.skip('Rate limiting is not implemented in pebble!')
     domains = ['httpexample-rate{}.org'.format(os.getpid())]
     csr = gencsrpem(domains, ckey)
-    m = server.ACMEAbstractHandler.manager = MA(registered_account_dir, validator=http_server)
+    m = backend.registered_manager(validator=http_server)
     for i in range(5):
         orderr = m.acquire_domain_validations(http_server, csr)
         assert len(orderr.authorizations) is 1

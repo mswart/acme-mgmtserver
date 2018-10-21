@@ -21,15 +21,12 @@ def M(configcontent, connect=False, validator=None):
     return manager.ACMEManager(c, connect=connect)
 
 
-def MA(dir, connect=True, validator=None):
-    return M('''[account]
-        dir = {}
-        acme-server = http://127.0.0.1:4001/directory
-        [mgmt]
-        [auth "all"]
+def MA(conf, connect=True, validator=None):
+    return M(conf + '''[auth "all"]
         all=yes
         domain=*
-        '''.format(dir), connect=connect, validator=validator)
+        ''', connect=connect, validator=validator)
+
 
 
 def gencsrpem(domains, key):
