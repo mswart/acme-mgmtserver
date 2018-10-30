@@ -1,3 +1,12 @@
+'''
+    This module contains mainly the `acmems.config.Configurator` class. It
+    parses configuration files. It valides all options are known and in the
+    correct format. It might raise a dedicated error or warning upon issues.
+
+    The parsed configuration is stored as instance variables and referenced
+    options are directly instanciated.
+'''
+
 import os.path
 import socket
 import warnings

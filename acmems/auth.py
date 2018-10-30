@@ -1,3 +1,14 @@
+'''
+    This modules organize the decision making whether the signing request is
+    valid and should be processed or unauthorized and should be rejected.
+
+    The main external interfaced is constructed with the `.Authenticator`:
+    it tangles everything together. The `.Processor` implemented the generel
+    decision process by iterating through all available authentication blocks
+    and invokes every referenced auchentication mothod to execute it
+    authentication and autorisation itself.
+'''
+
 import warnings
 from fnmatch import fnmatch
 import hmac
@@ -24,6 +35,9 @@ class SubjectAltName(BaseSubjectAltName):
 
 
 class Authenticator():
+    ''' Cooridantes the authentication. It stores to configuration with all
+        known authentication blocks.
+    '''
     def __init__(self, config=None):
         self.config = config
         self.blocks = []
@@ -32,6 +46,9 @@ class Authenticator():
         self.blocks.append(Block(name, options, self.config))
 
     def process(self, client_address, headers, rfile):
+        ''' Executes the request authentication by delicating it to the
+            `.Processor`.
+        '''
         return Processor(self, client_address, headers, rfile)
 
 

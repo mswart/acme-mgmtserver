@@ -1,3 +1,8 @@
+'''
+    This module aggregates all exception classes that are domain specific
+    and might be raised in other methods.
+'''
+
 class AcmeException(Exception):
     ''' Base exception call to be able to catch all ACMEMS specific
         errors
