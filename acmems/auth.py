@@ -9,10 +9,11 @@
     authentication and autorisation itself.
 '''
 
-import warnings
+import logging
 from fnmatch import fnmatch
-import hmac
 import hashlib
+import hmac
+import warnings
 
 from OpenSSL import crypto
 import pyasn1.type
@@ -21,6 +22,9 @@ from ndg.httpsclient.subj_alt_name import SubjectAltName as BaseSubjectAltName
 from IPy import IP
 
 from acmems import exceptions
+
+
+logger = logging.getLogger(__name__)
 
 
 ### Note: This is a slightly bug-fixed version of same from ndg-httpsclient.
@@ -144,7 +148,8 @@ class Block():
             return False
         for method in self.methods:
             if not method.possible(processor):
-                print('block {} excluded by {}'.format(self.name, method.__class__.__name__))
+                logger.debug('block %s excluded by %s',
+                             self.name, method.__class__.__name__)
                 return False
         return True
 

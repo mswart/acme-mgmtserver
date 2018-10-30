@@ -7,6 +7,8 @@
     options are directly instanciated.
 '''
 
+import logging
+import importlib
 import os.path
 import socket
 import warnings
@@ -84,6 +86,8 @@ class Configurator():
 
     def parse(self, config):
         config = self.read_data(config)
+        self.parse_setup_config(config.pop('setup', {}))
+        self.parse_logging_config(config.pop('logging', {}))
         self.parse_account_config(config.pop('account'))
         self.parser_mgmt_config(config.pop('mgmt'))
         special_group_re = re.compile('^(?P<type>(auth|verification|storage)) (?P<opener>"?)(?P<name>.+)(?P=opener)$')
@@ -145,6 +149,59 @@ class Configurator():
             if section:  # save old section data
                 sections[section] = options
         return sections
+
+    def parse_setup_config(self, config):
+        for option, value in config:
+            if option == 'include-path':
+                sys.argv.insert(value)
+            elif option == 'plugin':
+                importlib.import_module(value)
+            else:
+                warnings.warn('Option unknown [{}]{} = {}'.format('setup', option, value),
+                              UnusedOptionWarning, stacklevel=2)
+
+    def parse_logging_config(self, config):
+        level = None
+        destination = None
+        format = None
+        config_file = None
+        for option, value in config:
+            if option == 'level':
+                level = value.upper()
+            elif option == 'destination':
+                destination = value
+            elif option == 'format':
+                format = value
+            elif option == 'config-file':
+                config_file = value
+            else:
+                warnings.warn('Option unknown [{}]{} = {}'.format('logging', option, value),
+                              UnusedOptionWarning, stacklevel=2)
+        if config_file:
+            if level or destination:
+                warnings.warn('logging: external config will be used - other logging settings like level and destination will be ignored',
+                    UnusedOptionWarning, stacklevel=2)
+            logging.config.fileConfig(config_file)
+        else:
+            if destination == 'syslog':
+                opts = {'handlers': [logging.handlers.SyslogHandler('/dev/log')]}
+            elif destination == 'stdout':
+                opts = {'handlers': [systemd.handlers.StreamHandler(sys.stdout)]}
+            elif destination == 'stderr':
+                opts = {'handlers': [systemd.handlers.StreamHandler(sys.stderr)]}
+            elif destination == 'journalctl':
+                try:
+                    import systemd.journal
+                except ImportError:
+                    raise ConfigurationError('systemd python module required to log to journalctl')
+                opts = {'handlers': [systemd.journal.JournalHandler()]}
+            elif destination:  # normal file:
+                opts = {'filename': destination}
+            else:  # reuse loggings default destination (stderr)
+                opts = {}
+            if format:
+                opts['format'] = format
+            logging.basicConfig(level=level or 'WARNING', **opts)
 
     def parse_account_config(self, config):
         self.acme_server = None

@@ -1,6 +1,7 @@
 import os.path
 import time
 from datetime import datetime, timedelta
+import logging
 
 import OpenSSL.crypto
 
@@ -14,6 +15,8 @@ import josepy.util
 
 
 from acmems import exceptions
+
+logger = logging.getLogger(__name__)
 
 
 class ACMEManager():
@@ -33,13 +36,6 @@ class ACMEManager():
         self.directory = None
         if connect:
             self.connect()
-
-    def log(self, *args):
-        ''' log something
-
-        .. todo::
-            Switch to real logging'''
-        print(*args)
 
     # ----------------------------------------------------------
     # 1. generall ACME account handling (keys, registration ...)
@@ -194,28 +190,39 @@ class ACMEManager():
             :returns: Challenges for the requested domains
             :rtype: acme.messages.ChallengeBody
         '''
-
+        logger.info('Requesting a new order for a certificate')
         try:
             order = self.client.new_order(csrpem)
         except acme.messages.Error as e:
+            logger.info('Request for a new order has been declined')
             if e.typ == 'urn:ietf:params:acme:error:malformed':
                 raise exceptions.InvalidDomainName('unknown', e.detail)
             raise
         for authz in order.authorizations:
-            if not validator.new_authorization(authz.body, self.client, self.key, authz.body.identifier.value):
+            domain = authz.body.identifier.value
+            logger.info('processing authorization for %s', domain)
+            if not validator.new_authorization(authz.body, self.client, self.key, domain):
                 # HTTP01 is not support; no clue what to do ...
                 raise exceptions.NoChallengeMethodsSupported(
                     'No supported challenge methods were offered for {}.'
                     .format(domain))
-        return self.client.poll_authorizations(order, datetime.now() + timedelta(seconds=90))
+        logger.info('Awaiting for authorization to be validated')
+        try:
+            return self.client.poll_authorizations(order, datetime.now() + timedelta(seconds=90))
+        except acme.errors.ValidationError as e:
+            logger.error('Authorizations could not be validated!')
+            raise
 
     def issue_certificate(self, order):
         # Request a certificate using the CSR and some number of domain validation challenges.
-        self.log("Requesting a certificate.")
+        logger.info('Requesting a certificate for order')
         try:
             order = self.client.finalize_order(order, datetime.now() + timedelta(seconds=90))
         except acme.messages.Error as e:
             if e.typ == 'urn:ietf:params:acme:error:rateLimited':
+                logger.warning('New certificate rejected due to rate limiting')
                 raise exceptions.RateLimited(e.detail)
+            logger.warning('Certificate issueing failed')
             raise  # unhandled
+        logger.info('New certificate issued')
         return order.fullchain_pem.replace('-----END CERTIFICATE-----', '-----END CERTIFICATE-----\n').strip()
