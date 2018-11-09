@@ -51,6 +51,12 @@ for mgmt_listen in config.mgmt_listeners:
 
 print('running')
 
+try:
+    import systemd.daemon
+    systemd.daemon.notify('READY=1')
+except ImportError:
+    pass  # systemd integration is optional
+
 finished = 0
 try:
     for thread, service in zip(list(mgmt_threads), list(mgmt_services)):
@@ -58,5 +64,10 @@ try:
         service.shutdown()
         finished += 1
 except KeyboardInterrupt:
+    try:
+        import systemd.daemon
+        systemd.daemon.notify('STOPPING=1')
+    except ImportError:
+        pass  # systemd integration is optional
     for mgmt_service in mgmt_services[finished:]:
         mgmt_service.shutdown()
