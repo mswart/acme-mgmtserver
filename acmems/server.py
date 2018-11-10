@@ -22,6 +22,10 @@ class ThreadedACMEServerInet6(socketserver.ThreadingMixIn,
     allow_reuse_address = True
     address_family = socket.AF_INET6
 
+    def server_bind(self):
+        self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, True)
+        http.server.HTTPServer.server_bind(self)
+
 
 ThreadedACMEServerByType = {
     socket.AF_INET: ThreadedACMEServerInet4,
