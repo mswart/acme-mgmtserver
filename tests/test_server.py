@@ -9,7 +9,7 @@ import pytest
 from pyasn1.codec.der import decoder
 from OpenSSL import crypto
 
-from tests.helpers import M, MA, gencsrpem
+from tests.helpers import M, MA, gencsrpem, randomize_domains
 from acmems import server, auth
 
 
@@ -140,7 +140,7 @@ def test_mgmt_reject_too_long_csr(backend, http_server, mgmt_server, ckey):
         hmac_key = oiFDiu1uEM7xSzdUnQdTbyYAr
         domain=*
         ''', connect=True)
-    domains = ['www.fullexample{}.org'.format(os.getpid()), 'mail.fullexample{}.org'.format(os.getpid())]
+    domains = randomize_domains('www', 'mail', suffix='.fullexample{}.org')
     csr = gencsrpem(domains, ckey)
     assert len(csr) > 512
     request = urllib.request.Request('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
@@ -159,7 +159,7 @@ def test_mgmt_reject_invalid_csr(backend, http_server, mgmt_server, ckey):
         hmac_key = oiFDiu1uEM7xSzdUnQdTbyYAr
         domain=*
         ''', connect=True)
-    domains = ['www.fullexample{}.org'.format(os.getpid()), 'mail.fullexample{}.org'.format(os.getpid())]
+    domains = randomize_domains('www', 'mail', suffix='.fullexample{}.org')
     csr = gencsrpem(domains, ckey)
     csr = csr[340:] + csr[:340]
     request = urllib.request.Request('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
@@ -178,7 +178,7 @@ def test_mgmt_complete_multiple_domains(backend, http_server, mgmt_server, ckey)
         hmac_key = oiFDiu1uEM7xSzdUnQdTbyYAr
         domain=*
         ''', connect=True, validator=http_server)
-    domains = ['www.fullexample{}.org'.format(os.getpid()), 'mail.fullexample{}.org'.format(os.getpid())]
+    domains = randomize_domains('www', 'mail', suffix='.fullexample{}.org')
     csr = gencsrpem(domains, ckey)
     request = urllib.request.Request('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
     hash = hmac.new(b'oiFDiu1uEM7xSzdUnQdTbyYAr', csr, digestmod=hashlib.sha256).hexdigest()
@@ -212,7 +212,7 @@ def test_mgmt_complete_multiple_domains(backend, http_server, mgmt_server, ckey)
 
 def test_mgmt_complete_one_domain(backend, http_server, mgmt_server, ckey):
     server.ACMEAbstractHandler.manager = MA(backend.registered_account, validator=http_server)
-    domains = ['debug.fullexample{}.org'.format(os.getpid())]
+    domains = randomize_domains('debug.fullexample{}.org')
     csr = gencsrpem(domains, ckey)
     response = urllib.request.urlopen('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
     certs = response.read().split(b'\n\n')
@@ -250,7 +250,7 @@ def test_mgmt_complete_one_domain_by_dns(backend, dnsboulder_validator, mgmt_ser
         ip = 127.0.0.0/24
         domain=*
         ''', connect=True, validator=dnsboulder_validator)
-    domains = ['debug.fullexample{}.org'.format(os.getpid())]
+    domains = randomize_domains('debug.fullexample{}.org')
     csr = gencsrpem(domains, ckey)
     response = urllib.request.urlopen('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
     certs = response.read().split(b'\n\n')

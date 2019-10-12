@@ -1,5 +1,6 @@
 import io
 from datetime import datetime, timedelta
+import random
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization as pem_serialization
@@ -67,3 +68,8 @@ def signcsr(csrpem, key, period, issued_before=None):
         cert.public_bytes(pem_serialization.Encoding.PEM).decode('utf-8'),
         cert.public_bytes(pem_serialization.Encoding.PEM).decode('utf-8')
     ])
+
+
+def randomize_domains(*domains, suffix=''):
+    rand = random.randint(0, 2**16)
+    return [(domain + suffix).format(rand) for domain in domains]

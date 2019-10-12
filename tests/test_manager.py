@@ -1,12 +1,13 @@
 import os
 import shutil
+import random
 
 import pytest
 import acme
 import josepy.jwk
 
 from acmems import exceptions, server
-from tests.helpers import M, MA, gencsrpem
+from tests.helpers import M, MA, gencsrpem, randomize_domains
 
 
 ### load private key
@@ -54,6 +55,9 @@ def test_override_key(tmpdir):
 
 
 ### register
+def randomized_email():
+    return 'acme@pytest{}.org'.format(random.randint(0, 2**16))
+
 
 def test_register_with_general_tos(backend, tmpdir):
     m = M('''[account]
@@ -63,7 +67,7 @@ def test_register_with_general_tos(backend, tmpdir):
     m.create_private_key()
     m.init_client()
     assert m.tos_agreement_required().startswith(backend.tos_prefix)
-    m.register(emails=['acme-{}@example.test'.format(os.getpid())], tos_agreement=True)
+    m.register(emails=[randomized_email()], tos_agreement=True)
     assert not m.tos_agreement_required()
 
 
@@ -75,7 +79,7 @@ def test_register_with_specific_tos(backend, tmpdir):
     m.create_private_key()
     m.init_client()
     assert m.tos_agreement_required().startswith(backend.tos_prefix)
-    m.register(emails=['acme-{}@example.test'.format(os.getpid())], tos_agreement=m.tos_agreement_required())
+    m.register(emails=[randomized_email()], tos_agreement=m.tos_agreement_required())
     assert not m.tos_agreement_required()
 
 
@@ -88,7 +92,7 @@ def test_register_without_tos_agreement(backend, tmpdir):
     m.init_client()
     assert m.tos_agreement_required()
     with pytest.raises(exceptions.NeedToAgreeToTOS) as e:
-        m.register(emails=['acme-{}@example.test'.format(os.getpid())], tos_agreement=False)
+        m.register(emails=[randomized_email()], tos_agreement=False)
 
 
 def test_register_ignoring_tos_agreement(backend, tmpdir):
@@ -100,7 +104,7 @@ def test_register_ignoring_tos_agreement(backend, tmpdir):
     m.init_client()
     assert m.tos_agreement_required()
     with pytest.raises(exceptions.NeedToAgreeToTOS) as e:
-        m.register(emails=['acme-{}@example.test'.format(os.getpid())], tos_agreement=None)
+        m.register(emails=[randomized_email()], tos_agreement=None)
 
 
 ### refresh registration
@@ -123,13 +127,14 @@ def test_refresh_registration_for_unknown_key(backend):
 
 def test_auto_domain_verification(backend, http_server, ckey):
     m = backend.registered_manager(validator=http_server)
-    csr = gencsrpem(['www.example.com', 'mail.example.com'], ckey)
+    domains = randomize_domains('www', 'mail', suffix='.example{}.com')
+    csr = gencsrpem(domains, ckey)
     orderr = m.acquire_domain_validations(http_server, csr)
     assert len(orderr.authorizations) is 2
     assert orderr.authorizations[0].body.status.name == 'valid'
     assert orderr.authorizations[1].body.status.name == 'valid'
     assert sorted(map(lambda v: v.body.identifier.value, orderr.authorizations)) \
-        == ['mail.example.com', 'www.example.com']
+        == sorted(domains)
 
 
 def test_invalid_domain_verification(backend, http_server, ckey):
@@ -146,7 +151,7 @@ def test_invalid_domain_verification(backend, http_server, ckey):
 ### certificate creation
 
 def test_certificate_creation(backend, http_server, ckey):
-    domains = ['www.example{}.org'.format(os.getpid()), 'mail.example{}.org'.format(os.getpid())]
+    domains = randomize_domains('www', 'mail', suffix='.example{}.org')
     csr = gencsrpem(domains, ckey)
     m = backend.registered_manager(validator=http_server)
     orderr = m.acquire_domain_validations(http_server, csr)
@@ -158,7 +163,7 @@ def test_certificate_creation(backend, http_server, ckey):
 def test_rate_limit_on_certificate_creation(backend, http_server, ckey):
     if backend.name == 'pebble':
         return pytest.skip('Rate limiting is not implemented in pebble!')
-    domains = ['httpexample-rate{}.org'.format(os.getpid())]
+    domains = randomize_domains('httpexample-rate{}.org')
     csr = gencsrpem(domains, ckey)
     m = backend.registered_manager(validator=http_server)
     for i in range(5):

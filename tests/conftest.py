@@ -40,7 +40,8 @@ class ACMEBackend():
         m = M(conf)
         m.create_private_key()
         m.init_client()
-        m.register(emails=['acme-{}-permanent@example.test'.format(os.getpid())],
+        m.register(emails=['acme-{}-permanent@pytest{}.org'
+                           .format(self.name, os.getpid())],
                    tos_agreement=True)
         self.registered_account = conf
 
