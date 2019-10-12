@@ -2,13 +2,12 @@ import json
 import os
 from urllib.request import urlopen
 from threading import Thread
+import sys
 
 import pytest
-from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import rsa, ec
 from cryptography.hazmat.backends import default_backend
 
-import sys
-import os.path
 
 parent = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if os.path.isdir(os.path.join(parent, 'acmems')):
@@ -75,13 +74,16 @@ def acme_backend(request, tmpdir_factory):
     return backend
 
 
-@pytest.fixture(scope='session')
-def ckey():
-    key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048,
-        backend=default_backend())
-    return key
+@pytest.fixture(scope='session', params=['rsa', 'ec'])
+def ckey(request):
+    if request.param == 'rsa':
+        return rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend()
+        )
+    if request.param == 'ec':
+        return ec.generate_private_key(ec.SECP384R1(), default_backend())
 
 
 @pytest.fixture(scope='session')
