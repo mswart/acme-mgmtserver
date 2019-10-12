@@ -17,19 +17,7 @@ class NoChallengeMethodsSupported(AcmeException):
 
 
 class ChallengeFailed(AcmeException):
-    ''' The challenge to validate the requested domain failed.
-
-        :ivar str domain: the domain which the challenge should validate
-        :ivar str message: message description from ACME server
-        :ivar str challenge_uri: the URI of the failed challenge
-    '''
-    def __init__(self, domain, message, challenge_uri):
-        self.domain = domain
-        self.message = message
-        self.challenge_uri = challenge_uri
-
-    def __str__(self):
-        return "The challenge for {} failed: {}.".format(self.domain, self.message)
+    ''' The challenge to validate the requested domain failed.'''
 
 
 class RateLimited(AcmeException):

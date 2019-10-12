@@ -260,6 +260,7 @@ Error code:
 * **403**: Signing is denied, have a look at your auth blocks / authentication methods; are you missing an `Authentication` header?
 * **413**: CSR request is too long. You might increase the `max-size` setting.
 * **415**: CSR could not be parsed.
+* **421**: Challenge validation failed (temporarily)
 * **500**: Internal exception - take a look at the log and report the bug.
 
 

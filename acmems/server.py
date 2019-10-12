@@ -5,6 +5,8 @@ import socket
 import socketserver
 import http.server
 
+import acme.errors
+
 from acmems import exceptions
 
 logger = logging.getLogger(__name__)
@@ -116,6 +118,9 @@ class ACMEMgmtHandler(ACMEAbstractHandler):
         except exceptions.PayloadInvalid:
             logger.warning('Payload (CSR) could not be parsed', extra=extra)
             self.send_error(415)
+        except exceptions.ChallengeFailed:
+            logger.warning('Unable to validate wanted domains!')
+            self.send_error(421, 'Misdirected Request: Validation failed')
         except Exception:
             logger.error('Unknown exception during request processing',
                 exc_info=True, extra=extra)

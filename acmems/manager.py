@@ -207,9 +207,9 @@ class ACMEManager():
         logger.info('Awaiting for authorization to be validated')
         try:
             return self.client.poll_authorizations(order, datetime.now() + timedelta(seconds=90))
-        except acme.errors.ValidationError as e:
+        except acme.errors.ValidationError:
             logger.error('Authorizations could not be validated!')
-            raise
+            raise exceptions.ChallengeFailed()
 
     def issue_certificate(self, order):
         # Request a certificate using the CSR and some number of domain validation challenges.

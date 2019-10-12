@@ -227,3 +227,13 @@ def test_mgmt_complete_one_domain_by_dns(backend, dnsboulder_validator, mgmt_ser
     assert x509[0].has_expired() is False
     assert x509[1].has_expired() is False
     assert sorted(extract_alt_names(x509[0])) == sorted(domains)
+
+
+def test_mgmt_for_certificate_error(backend, http_server, mgmt_server, ckey):
+    backend.registered_manager(validator=http_server)
+    domains = randomize_domains('error.fullexample{}.org')
+    csr = gencsrpem(domains, ckey)
+    backend.add_servfail_response(domains[0])
+    with pytest.raises(urllib.error.HTTPError) as e:
+        urllib.request.urlopen('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
+    assert e.value.code == 421

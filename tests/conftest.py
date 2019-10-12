@@ -59,6 +59,16 @@ class ACMEBackend():
         task = json.dumps({'ip': ip}).encode('utf-8')
         urlopen(self.challtestapi + '/set-default-ipv4', task)
 
+    def add_servfail_response(self, host):
+        if self.name == 'pebble':
+            urlopen(self.challtestapi + '/add-a',
+                    json.dumps({'host': host,
+                                'addresses': ['127.254.254.254']})
+                        .encode('utf-8'))
+            return
+        urlopen(self.challtestapi + '/set-servfail',
+                json.dumps({'host': host}).encode('utf-8'))
+
 
 test_backends = [
     ACMEBackend('boulder', 'http://127.0.0.1:4001/directory', 'https:'),
