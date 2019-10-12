@@ -229,6 +229,27 @@ def test_mgmt_complete_one_domain_by_dns(backend, dnsboulder_validator, mgmt_ser
     assert sorted(extract_alt_names(x509[0])) == sorted(domains)
 
 
+def test_mgmt_complete_wildcard_domain(backend, dnsboulder_validator, mgmt_server, ckey):
+    server.ACMEAbstractHandler.manager = M(backend.registered_account + '''
+        [verification "boulder"]
+        type = dns01-boulder
+        [auth "localhost"]
+        ip = 127.0.0.0/24
+        domain=*
+        ''', connect=True, validator=dnsboulder_validator)
+    domains = randomize_domains('fullexample{}.org', '*.fullexample{}.org')
+    csr = gencsrpem(domains, ckey)
+    response = urllib.request.urlopen('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
+    certs = response.read().split(b'\n\n')
+    assert len(certs) == 2
+    x509 = [crypto.load_certificate(crypto.FILETYPE_PEM, cert) for cert in certs]
+    assert x509[0].get_subject().CN == domains[0]
+    #assert x509[0].get_issuer() == x509[1].get_subject()
+    assert x509[0].has_expired() is False
+    assert x509[1].has_expired() is False
+    assert sorted(extract_alt_names(x509[0])) == sorted(domains)
+
+
 def test_mgmt_for_certificate_error(backend, http_server, mgmt_server, ckey):
     backend.registered_manager(validator=http_server)
     domains = randomize_domains('error.fullexample{}.org')

@@ -145,6 +145,24 @@ def test_accept_multiple_correct_domains(a, ckey):
         assert p.acceptable() is True
 
 
+def test_accept_wildcard_domain(a, ckey):
+    a.parse_block('all', [('ip', '192.0.2.0/24'), ('domain', 'example.org'), ('domain', '*.example.com')])
+    with a.process(*args(ckey, '192.0.2.34', 'example.org', '*.example.com')) as p:
+        assert p.acceptable() is True
+
+
+def test_reject_wildcard_for_normal_domain(a, ckey):
+    a.parse_block('all', [('ip', '192.0.2.0/24'), ('domain', 'example.org'), ('domain', 'www.example.com')])
+    with a.process(*args(ckey, '192.0.2.34', 'example.org', '*.example.com')) as p:
+        assert p.acceptable() is False
+
+
+def test_reject2_wildcard_for_normal_domain(a, ckey):
+    a.parse_block('all', [('ip', '192.0.2.0/24'), ('domain', 'mail.example.org'), ('domain', 'www.example.com')])
+    with a.process(*args(ckey, '192.0.2.34', '*.example.com')) as p:
+        assert p.acceptable() is False
+
+
 ## hmac auth
 
 
