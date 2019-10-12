@@ -3,8 +3,6 @@ import time
 from datetime import datetime, timedelta
 import logging
 
-import OpenSSL.crypto
-
 import acme.client
 import acme.messages
 from cryptography.hazmat.backends import default_backend

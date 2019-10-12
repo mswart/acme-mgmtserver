@@ -15,27 +15,15 @@ import hashlib
 import hmac
 import warnings
 
-from OpenSSL import crypto
-import pyasn1.type
-from pyasn1.codec.der import decoder
-from ndg.httpsclient.subj_alt_name import SubjectAltName as BaseSubjectAltName
+from cryptography import x509
+import cryptography.exceptions
 from IPy import IP
+from OpenSSL import crypto
 
 from acmems import exceptions
 
 
 logger = logging.getLogger(__name__)
-
-
-### Note: This is a slightly bug-fixed version of same from ndg-httpsclient.
-class SubjectAltName(BaseSubjectAltName):
-    '''ASN.1 implementation for subjectAltNames support'''
-
-    # There is no limit to how many SAN certificates a certificate may have,
-    #   however this needs to have some limit so we'll set an arbitrarily high
-    #   limit.
-    sizeSpec = pyasn1.type.univ.SequenceOf.sizeSpec + \
-        pyasn1.type.constraint.ValueSizeConstraint(1, 1024)
 
 
 class Authenticator():
@@ -268,21 +256,14 @@ class Processor():
             raise exceptions.PayloadToLarge(size=content_length, allowed=self.auth.config.max_size)
         self.csrpem = self.rfile.read(content_length)
         self.csr = crypto.load_certificate_request(crypto.FILETYPE_PEM, self.csrpem)
-        self.common_name = self.csr.get_subject().CN
-        self.dns_names = []
-        for ext in self.csr.get_extensions():
-            if ext.get_short_name() != b'subjectAltName':
-                continue
-            general_names = SubjectAltName()
-            data = ext.get_data()
-            decoded_dat = decoder.decode(data, asn1Spec=general_names)
-            for name in decoded_dat:
-                if not isinstance(name, SubjectAltName):
-                    continue
-                for entry in range(len(name)):
-                    component = name.getComponentByPosition(entry)
-                    if component.getName() != 'dNSName':
-                        continue
-                    self.dns_names.append(str(component.getComponent()))
+        csr = self.csr.to_cryptography()
+        self.common_name = csr.subject.get_attributes_for_oid(
+            x509.oid.NameOID.COMMON_NAME)[0].value
+        try:
+            extension = csr.extensions.get_extension_for_oid(
+                x509.ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
+            self.dns_names = extension.value.get_values_for_type(x509.DNSName)
+        except x509.extensions.ExtensionNotFound:
+            self.dns_names = []
         if self.common_name not in self.dns_names:
             self.dns_names.insert(0, self.common_name)

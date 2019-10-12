@@ -63,9 +63,7 @@ setup(
     install_requires=[
         'acme>=0.21.0',
         'josepy',
-        'ndg-httpsclient',  # urllib3 InsecurePlatformWarning (#304)
-        'pyasn1',  # urllib3 InsecurePlatformWarning (#304)
-        'PyOpenSSL>=0.15',  # X509Req.get_extensions (>=0.15)
+        'PyOpenSSL>=2017.1.0',  # to_cryptography (>=2017.1.0)
         'IPy',
     ],
 

@@ -6,10 +6,9 @@ import hmac
 import hashlib
 
 import pytest
-from pyasn1.codec.der import decoder
 from OpenSSL import crypto
 
-from tests.helpers import M, MA, gencsrpem, randomize_domains
+from tests.helpers import M, MA, gencsrpem, extract_alt_names, randomize_domains
 from acmems import server, auth
 
 
@@ -191,23 +190,7 @@ def test_mgmt_complete_multiple_domains(backend, http_server, mgmt_server, ckey)
     #assert x509[0].get_issuer() == x509[1].get_subject()
     assert x509[0].has_expired() is False
     assert x509[1].has_expired() is False
-    for i in range(x509[0].get_extension_count()):
-        ext = x509[0].get_extension(i)
-        if ext.get_short_name() != b'subjectAltName':
-            continue
-        general_names = auth.SubjectAltName()
-        data = ext.get_data()
-        dns_names = []
-        decoded_dat = decoder.decode(data, asn1Spec=general_names)
-        for name in decoded_dat:
-            if not isinstance(name, auth.SubjectAltName):
-                continue
-            for entry in range(len(name)):
-                component = name.getComponentByPosition(entry)
-                if component.getName() != 'dNSName':
-                    continue
-                dns_names.append(str(component.getComponent()))
-        assert sorted(dns_names) == sorted(domains)
+    assert sorted(extract_alt_names(x509[0])) == sorted(domains)
 
 
 def test_mgmt_complete_one_domain(backend, http_server, mgmt_server, ckey):
@@ -222,24 +205,7 @@ def test_mgmt_complete_one_domain(backend, http_server, mgmt_server, ckey):
     #assert x509[0].get_issuer() == x509[1].get_subject()
     assert x509[0].has_expired() is False
     assert x509[1].has_expired() is False
-    for i in range(x509[0].get_extension_count()):
-        ext = x509[0].get_extension(i)
-        if ext.get_short_name() != b'subjectAltName':
-            continue
-        general_names = auth.SubjectAltName()
-        data = ext.get_data()
-        dns_names = []
-        decoded_dat = decoder.decode(data, asn1Spec=general_names)
-        for name in decoded_dat:
-            if not isinstance(name, auth.SubjectAltName):
-                continue
-            for entry in range(len(name)):
-                component = name.getComponentByPosition(entry)
-                if component.getName() != 'dNSName':
-                    continue
-                dns_names.append(str(component.getComponent()))
-        assert sorted(dns_names) == sorted(domains)
-
+    assert sorted(extract_alt_names(x509[0])) == sorted(domains)
 
 
 def test_mgmt_complete_one_domain_by_dns(backend, dnsboulder_validator, mgmt_server, ckey):
@@ -260,20 +226,4 @@ def test_mgmt_complete_one_domain_by_dns(backend, dnsboulder_validator, mgmt_ser
     #assert x509[0].get_issuer() == x509[1].get_subject()
     assert x509[0].has_expired() is False
     assert x509[1].has_expired() is False
-    for i in range(x509[0].get_extension_count()):
-        ext = x509[0].get_extension(i)
-        if ext.get_short_name() != b'subjectAltName':
-            continue
-        general_names = auth.SubjectAltName()
-        data = ext.get_data()
-        dns_names = []
-        decoded_dat = decoder.decode(data, asn1Spec=general_names)
-        for name in decoded_dat:
-            if not isinstance(name, auth.SubjectAltName):
-                continue
-            for entry in range(len(name)):
-                component = name.getComponentByPosition(entry)
-                if component.getName() != 'dNSName':
-                    continue
-                dns_names.append(str(component.getComponent()))
-        assert sorted(dns_names) == sorted(domains)
+    assert sorted(extract_alt_names(x509[0])) == sorted(domains)

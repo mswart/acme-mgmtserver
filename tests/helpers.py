@@ -70,6 +70,14 @@ def signcsr(csrpem, key, period, issued_before=None):
     ])
 
 
+def extract_alt_names(obj):
+    try:
+        extension = obj.to_cryptography().extensions \
+            .get_extension_for_oid(x509.ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
+        return extension.value.get_values_for_type(x509.DNSName)
+    except x509.extensions.ExtensionNotFound:
+        return []
+
 def randomize_domains(*domains, suffix=''):
     rand = random.randint(0, 2**16)
     return [(domain + suffix).format(rand) for domain in domains]
