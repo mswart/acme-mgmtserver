@@ -121,6 +121,9 @@ class ACMEMgmtHandler(ACMEAbstractHandler):
         except exceptions.ChallengeFailed:
             logger.warning('Unable to validate wanted domains!')
             self.send_error(421, 'Misdirected Request: Validation failed')
+        except exceptions.RateLimited:
+            logger.warning('Payload (CSR) could not be parsed', extra=extra)
+            self.send_error(429, 'Certificate declined due to rate limiting')
         except Exception:
             logger.error('Unknown exception during request processing',
                 exc_info=True, extra=extra)

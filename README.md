@@ -261,6 +261,7 @@ Error code:
 * **413**: CSR request is too long. You might increase the `max-size` setting.
 * **415**: CSR could not be parsed.
 * **421**: Challenge validation failed (temporarily)
+* **429**: Rated limited (currently only based on ACME upstream errors)
 * **500**: Internal exception - take a look at the log and report the bug.
 
 

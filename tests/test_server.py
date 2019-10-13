@@ -237,3 +237,19 @@ def test_mgmt_for_certificate_error(backend, http_server, mgmt_server, ckey):
     with pytest.raises(urllib.error.HTTPError) as e:
         urllib.request.urlopen('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
     assert e.value.code == 421
+
+
+def test_complete_rate_limit_on_certificate_creation(backend, http_server, mgmt_server, ckey):
+    if backend.name == 'pebble':
+        return pytest.skip('Rate limiting is not implemented in pebble!')
+    backend.registered_manager(validator=http_server)
+    domains = randomize_domains('debug.fullexample{}.org')
+    csr = gencsrpem(domains, ckey)
+    for i in range(5):
+        response = urllib.request.urlopen('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
+        certs = response.read()
+        assert b'-----BEGIN CERTIFICATE-----' in certs
+        assert b'-----END CERTIFICATE-----' in certs
+    with pytest.raises(urllib.error.HTTPError) as e:
+        urllib.request.urlopen('http://127.0.0.1:{}/sign'.format(mgmt_server.server_port), csr)
+    assert e.value.code == 429
