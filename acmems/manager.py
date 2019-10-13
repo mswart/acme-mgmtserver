@@ -193,8 +193,11 @@ class ACMEManager():
             order = self.client.new_order(csrpem)
         except acme.messages.Error as e:
             logger.info('Request for a new order has been declined')
-            if e.typ == 'urn:ietf:params:acme:error:malformed':
+            if e.typ == 'urn:ietf:params:acme:error:rejectedIdentifier':
                 raise exceptions.InvalidDomainName('unknown', e.detail)
+            elif e.typ == 'urn:ietf:params:acme:error:rateLimited':
+                logger.warning('New certificate rejected due to rate limiting')
+                raise exceptions.RateLimited(e.detail)
             raise
         for authz in order.authorizations:
             domain = authz.body.identifier.value

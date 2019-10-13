@@ -144,8 +144,7 @@ def test_invalid_domain_verification(backend, http_server, ckey):
     csr = gencsrpem(['test.invalid'], ckey)
     with pytest.raises(exceptions.InvalidDomainName) as e:
         m.acquire_domain_validations(http_server, csr)
-    # todo: with v2 it is not possible to extract with domain is the issue
-    # assert 'test.invalid' in str(e)
+    assert 'test.invalid' in str(e.value)
 
 
 ### certificate creation
@@ -172,8 +171,8 @@ def test_rate_limit_on_certificate_creation(backend, http_server, ckey):
         certs = m.issue_certificate(orderr)
         assert '-----BEGIN CERTIFICATE-----' in certs
         assert '-----END CERTIFICATE-----' in certs
-    orderr = m.acquire_domain_validations(http_server, csr)
-    assert len(orderr.authorizations) is 1
     with pytest.raises(exceptions.RateLimited) as e:
+        orderr = m.acquire_domain_validations(http_server, csr)
+        assert len(orderr.authorizations) is 1
         m.issue_certificate(orderr)
     assert domains[0] in str(e.value)

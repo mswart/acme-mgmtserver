@@ -45,8 +45,8 @@ def test_rate_limit_on_certificate_creation_by_dns(backend, dnsboulder_validator
         assert '-----BEGIN CERTIFICATE-----' in certs
         assert '-----END CERTIFICATE-----' in certs
 
-    orderr = m.acquire_domain_validations(dnsboulder_validator, csr)
-    assert len(orderr.authorizations) is 1
     with pytest.raises(exceptions.RateLimited) as e:
+        orderr = m.acquire_domain_validations(dnsboulder_validator, csr)
+        assert len(orderr.authorizations) is 1
         m.issue_certificate(orderr)
     assert domains[0] in str(e.value)
