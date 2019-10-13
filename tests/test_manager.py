@@ -27,7 +27,7 @@ def test_no_key_file():
         [mgmt]''')
     with pytest.raises(exceptions.AccountError) as e:
         m.load_private_key()
-    assert 'account.pem not found' in str(e)
+    assert 'account.pem not found' in str(e.value)
 
 
 ### create private key
@@ -47,8 +47,8 @@ def test_override_key(tmpdir):
     shutil.copyfile('tests/support/valid/account.pem', str(tmpdir.join('account.pem')))
     with pytest.raises(exceptions.AccountError) as e:
         m.create_private_key()
-    assert 'force' in str(e)
-    assert 'Existing key is only override if I am forced to' in str(e)
+    assert 'force' in str(e.value)
+    assert 'Existing key is only override if I am forced to' in str(e.value)
     m.create_private_key(force=True)
     assert type(m.key) is josepy.jwk.JWKRSA
     assert m.key.thumbprint() != b'\xfe\xb1\xaa\xf8\xc8&\xb6v\x1f\xd3Jc\xbc\x80\xb0ie\xf6\xf6\xb9x$\x14\xf9\x1b\x99{\xe6\x91L\x89\x9e'
@@ -120,7 +120,7 @@ def test_refresh_registration_for_unknown_key(backend):
     assert type(m.client) is acme.client.ClientV2
     with pytest.raises(exceptions.AccountError) as e:
         m.refresh_registration()
-    assert 'Key is not yet registered' in str(e)
+    assert 'Key is not yet registered' in str(e.value)
 
 
 ### domain verificateion
@@ -176,4 +176,4 @@ def test_rate_limit_on_certificate_creation(backend, http_server, ckey):
     assert len(orderr.authorizations) is 1
     with pytest.raises(exceptions.RateLimited) as e:
         m.issue_certificate(orderr)
-    assert domains[0] in str(e)
+    assert domains[0] in str(e.value)

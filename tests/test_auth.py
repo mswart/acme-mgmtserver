@@ -43,31 +43,31 @@ def test_warning_on_unknown_option(a, ckey):
 def test_error_on_unknown_verification(a, ckey):
     with pytest.raises(config.UnknownVerificationError) as e:
         a.parse_block('err', [('verification', 'asdfasfd'), ('domain', 'example.org')])
-    assert 'asdfasfd' in str(e)
+    assert 'asdfasfd' in str(e.value)
 
 
 def test_error_on_unknown_storage(a, ckey):
     with pytest.raises(config.UnknownStorageError) as e:
         a.parse_block('err', [('storage', 'asdfasfd'), ('domain', 'example.org')])
-    assert 'asdfasfd' in str(e)
+    assert 'asdfasfd' in str(e.value)
 
 
 def test_error_on_no_verification_and_disabled_default_verification(a, ckey):
     a.config.default_validator = False
     with pytest.raises(config.UnknownVerificationError) as e:
         a.parse_block('err', [('domain', 'example.org')])
-    assert 'auth "err"' in str(e)
-    assert 'default' in str(e)
-    assert 'disabled' in str(e)
+    assert 'auth "err"' in str(e.value)
+    assert 'default' in str(e.value)
+    assert 'disabled' in str(e.value)
 
 
 def test_error_on_no_storage_and_disabled_default_one(a, ckey):
     a.config.default_storage = False
     with pytest.raises(config.UnknownStorageError) as e:
         a.parse_block('err', [('domain', 'example.org')])
-    assert 'auth "err"' in str(e)
-    assert 'default' in str(e)
-    assert 'disabled' in str(e)
+    assert 'auth "err"' in str(e.value)
+    assert 'default' in str(e.value)
+    assert 'disabled' in str(e.value)
 
 
 def test_different_validator(a, ckey):

@@ -58,8 +58,8 @@ def test_error_on_multiple_acme_server_addresses():
             acme-server = https://acme2.example.org/directory
             [mgmt]
             ''')
-    assert 'https://acme.example.org/directory' in str(e)
-    assert 'https://acme2.example.org/directory' in str(e)
+    assert 'https://acme.example.org/directory' in str(e.value)
+    assert 'https://acme2.example.org/directory' in str(e.value)
 
 
 ### [account] dir
@@ -138,7 +138,7 @@ def test_unix_socket_as_mgmt_listener():
             [mgmt]
             listener=/run/acmems/mgmt.sock
             ''')
-    assert 'unix socket' in str(e)
+    assert 'unix socket' in str(e.value)
 
 
 ### [mgmt] max size
@@ -237,7 +237,7 @@ def test_unix_socket_as_http_listener():
             type=http01
             listener=/run/acmems/http.sock
             ''')
-    assert 'unix socket' in str(e)
+    assert 'unix socket' in str(e.value)
 
 
 ### dns verification
@@ -343,7 +343,7 @@ def test_not_other_none_storage_options():
             type = none
             other = test
             ''')
-    assert 'other' in str(e)
+    assert 'other' in str(e.value)
 
 
 def test_implicit_default_storage():
