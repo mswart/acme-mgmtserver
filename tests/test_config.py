@@ -15,14 +15,14 @@ def parse(configcontent):
 
 
 def test_error_on_option_without_section():
-    with pytest.warns(config.UnusedOptionWarning) as e:
+    with pytest.warns(config.UnusedOptionWarning) as w:
         parse('''
             acme-server = https://acme.example.org/directory
             [account]
             [mgmt]
             ''')
-    assert 'acme-server' in str(e[0].message)
-    assert 'https://acme.example.org/directory' in str(e[0].message)
+    assert 'acme-server' in str(w[-1].message)
+    assert 'https://acme.example.org/directory' in str(w[-1].message)
 
 
 def test_comment():
@@ -76,14 +76,14 @@ def test_account_dir():
 ### [account] unknown option
 
 def test_warning_on_unknown_account_option():
-    with pytest.warns(config.UnusedOptionWarning) as e:
+    with pytest.warns(config.UnusedOptionWarning) as w:
         parse('''
             [account]
             acme_server = https://acme.example.org/directory
             [mgmt]
             ''')
-    assert 'acme_server' in str(e[0].message)
-    assert 'https://acme.example.org/directory' in str(e[0].message)
+    assert 'acme_server' in str(w[-1].message)
+    assert 'https://acme.example.org/directory' in str(w[-1].message)
 
 
 ### [mgmt] mgmt
@@ -184,26 +184,26 @@ def test_max_size_options_in_mbytes():
 ### [mgmt] unknown option
 
 def test_warning_on_unknown_mgmt_option():
-    with pytest.warns(config.UnusedOptionWarning) as e:
+    with pytest.warns(config.UnusedOptionWarning) as w:
         parse('''
             [account]
             [mgmt]
             manager = https://acme.example.org/directory
             ''')
-    assert 'manager' in str(e[0].message)
-    assert 'https://acme.example.org/directory' in str(e[0].message)
+    assert 'manager' in str(w[-1].message)
+    assert 'https://acme.example.org/directory' in str(w[-1].message)
 
 
 ### unknown section
 
 def test_warning_on_unknown_section():
-    with pytest.warns(config.UnusedSectionWarning) as e:
+    with pytest.warns(config.UnusedSectionWarning) as w:
         parse('''
             [account]
             [mgmt]
             [unknown]
             ''')
-    assert 'unknown' in str(e[0].message)
+    assert 'unknown' in str(w[-1].message)
 
 
 ### http verification
