@@ -20,12 +20,17 @@ script:
   - tests/integration/register.sh ${TEST_GROUP}
   - tests/integration/gencert.py ${TEST_GROUP}
 after_script: tests/scripts/logs-${TEST_GROUP}.sh
-deploy:
-  provider: pypi
-  user: mswart
-  password:
-    secure: P0/BaZAXMv4/qhUICgXIWGD2+DZNKOE6WxBoz6Sui27FFe1VPJ6NoEPzJyHfcKovpwpApbTumsQPbpkym1azSRoneEd5KytLHZMf2TKcmZpQ5muCMwI8vLlROMnhME49eK/c2QNy9pcTD+JQmqwCqwDI0EjuclZWIt8hTqWcScq9EoDqhQ0hpV+DfPnEWWi2lQxD1ycwwIn00JE4WNKdIw+W+Q0Upup5RTADaeeeRPX3ZxNYpvcKSG0bDX2Q2drs//35SiVsZENg0GZ1bS0tpYBzUVXeAgsOIaqvN33DMNDVOh5+GZlVX5l0MK/hzqPOihEP06BKGn+Nx/oWLP01XRCRrG7NHohyUqkUbz5cPlPC/kN6kh42AVhi4JOOzFuihSZzGeVdsGj0CNzUgY9IcXMFTUOQM5hL3zZxYxMv8lAN9RSHfcRw3cZ+UesIHeC3piDxVQ68vaBZDSdmJjbir766ddGSAg0uIy55/64UOpF6HUzMcfAvnbdNywFdSEH5R+W7CwoWdF7GDAB7cY/aKs14JgYOkHdBtUaWy4XiE5LuD4ZMW/xyfkbc89WkxI+dDFPEzYnWZL2oQGvGtAwVlVcn3Ylp9IINtB1iO+r3UwPaKQzbr3s3R2jzzKVfjZkNiXzFhgDyYOpWReT7vL7Ga6TpSuFrLnSmksnZf8rRyqo=
-  on:
-    tags: true
-    contition: '"${TRAVIS_TAG:0:1}" = "v"'
-    python: "3.8"
+jobs:
+  include:
+    - stage: deploy
+      services: []
+      script: echo Deploy
+      python: 3.8
+      deploy:
+        provider: pypi
+        user: __token__
+        password:
+          secure: M2KowFO0aKl9nrQgphTp4qDDwJgEXl5sl9sY1tzTn0TQ8fagcFrAx6r8GnnDslG07iuf45+PJ7Lzo+ydT18qjt/VmrD7czOh2pKHO5fmntgCC5Zbeved2xOnEZWf/wg7S0HKieUm3w1FGsaCoipyLP01K8CWxDjU9d3lEv0s9BESL8RKUj4oY4E3GUfuntPnXJl0FZOy/Cz0Ze67HbizMIqedZL3aNQgfWcI64/U6TcZGb2dYEKsvympXQxwhXQ6KQaWht6vm7oxYOhdAGg7qSRVdQTZHhOXwLNr3cjjRvtPc3eIPcrAq4kk4WzlCv9LUZvFpDg+iSulL9kbu3QMvHpEz0wYFmSOhcRvcV6n3Iw3dLZkLsATJvOpyBwP5HlBYB4HbTi/VTn2MiNQms5peM47sw7OWwUzkO5koLHXB72F4zaNlZqNqIYsiVc2GmBgx4Cgfs5W/XsQ1rNNJPjsRbBmDJXQPJ+xxrIV0PBfedyaG2RU0wjDHzHkj9+LYlUlEQ3vR9NHTRj8Iy+rYH298T5FxSdg7D1k6IN+gAeQnIW2ShmLnPNtv5QaFW/9Ll2Nbw7LgEGffsvjbk/AuK1Z0/KVBojF7MBhgY5ToyBfkpY2wCH2Cq4i7TXE/YyvFXkvOdCeTKbubTjb7RH68rptQU4jcmokPybupVuqrVpi/Ns=
+        on:
+          tags: true
+          contition: '"${TRAVIS_TAG:0:1}" = "v"'
