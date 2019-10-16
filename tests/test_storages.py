@@ -19,12 +19,12 @@ class TestFileStorage():
     def test_error_without_directory(self):
         with pytest.raises(config.ConfigurationError) as e:
             storages.setup('file', 'file', ())
-        assert 'directory' in str(e)
+        assert 'directory' in str(e.value)
 
     def test_error_on_unknown_option(self, tmpdir):
         with pytest.raises(config.ConfigurationError) as e:
             storages.setup('file', 'file', (('directory', str(tmpdir)), ('unknonw', 'value')))
-        assert 'unknonw' in str(e)
+        assert 'unknonw' in str(e.value)
 
     def test_none_on_unknown_csr(self, file_storage, ckey):
         csr = gencsrpem(['test.example.org'], ckey)

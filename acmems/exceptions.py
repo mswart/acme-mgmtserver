@@ -1,3 +1,8 @@
+'''
+    This module aggregates all exception classes that are domain specific
+    and might be raised in other methods.
+'''
+
 class AcmeException(Exception):
     ''' Base exception call to be able to catch all ACMEMS specific
         errors
@@ -12,46 +17,7 @@ class NoChallengeMethodsSupported(AcmeException):
 
 
 class ChallengeFailed(AcmeException):
-    ''' The challenge to validate the requested domain failed.
-
-        :ivar str domain: the domain which the challenge should validate
-        :ivar str message: message description from ACME server
-        :ivar str challenge_uri: the URI of the failed challenge
-    '''
-    def __init__(self, domain, message, challenge_uri):
-        self.domain = domain
-        self.message = message
-        self.challenge_uri = challenge_uri
-
-    def __str__(self):
-        return "The challenge for {} failed: {}.".format(self.domain, self.message)
-
-
-class ChallengesUnknownStatus(AcmeException):
-    ''' We do not known the status of the challenge. No clue what to do '''
-    pass
-
-
-class AuthorizationNotYetProcessed(AcmeException):
-    ''' The authorization is be processed; until the next refresh it should
-        at least be wait until `~wait_until`
-
-        :ivar datetime.datetime wait_until: first allowed retry time
-    '''
-    def __init__(self, wait_until):
-        self.wait_until = wait_until
-
-
-class AuthorizationNotYetRequested(AcmeException):
-    ''' The newly created authorization challenge, was installed, but has not
-        yet been requested by any client and is therefore currently pending
-        or invalid.
-
-        :ivar threading.Event event: event that will be signaled if someone
-            requests the challenge.
-    '''
-    def __init__(self, event):
-        self.event = event
+    ''' The challenge to validate the requested domain failed.'''
 
 
 class RateLimited(AcmeException):

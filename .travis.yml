@@ -1,21 +1,25 @@
 language: python
 python:
-  - '3.3'
-  - '3.4'
   - '3.5'
+  - '3.6'
+  - '3.7'
+  - '3.8'
+env:
+  - TEST_GROUP=generic
+  - TEST_GROUP=pebble
+  - TEST_GROUP=boulder
 sudo: required
-dist: trusty
+dist: bionic
 install:
-  - sudo tests/scripts/setup-dependencies.sh
-  - tests/scripts/setup-boulder.sh
+  - tests/scripts/setup-${TEST_GROUP}.sh
   - pip install -r requirements.txt
 services:
-  - rabbitmq
+  - docker
 script:
-  - py.test
-  - tests/integration/register.sh
-  - tests/integration/gencert.py
-after_script: cat ~/build/go/src/github.com/letsencrypt/boulder/nohup.out
+  - tests/scripts/pytest-${TEST_GROUP}.sh
+  - tests/integration/register.sh ${TEST_GROUP}
+  - tests/integration/gencert.py ${TEST_GROUP}
+after_script: tests/scripts/logs-${TEST_GROUP}.sh
 deploy:
   provider: pypi
   user: mswart
@@ -24,4 +28,4 @@ deploy:
   on:
     tags: true
     contition: '"${TRAVIS_TAG:0:1}" = "v"'
-    python: "3.5"
+    python: "3.8"

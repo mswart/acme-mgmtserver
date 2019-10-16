@@ -15,14 +15,14 @@ def parse(configcontent):
 
 
 def test_error_on_option_without_section():
-    with pytest.warns(config.UnusedOptionWarning) as e:
+    with pytest.warns(config.UnusedOptionWarning) as w:
         parse('''
             acme-server = https://acme.example.org/directory
             [account]
             [mgmt]
             ''')
-    assert 'acme-server' in str(e[0].message)
-    assert 'https://acme.example.org/directory' in str(e[0].message)
+    assert 'acme-server' in str(w[-1].message)
+    assert 'https://acme.example.org/directory' in str(w[-1].message)
 
 
 def test_comment():
@@ -58,8 +58,8 @@ def test_error_on_multiple_acme_server_addresses():
             acme-server = https://acme2.example.org/directory
             [mgmt]
             ''')
-    assert 'https://acme.example.org/directory' in str(e)
-    assert 'https://acme2.example.org/directory' in str(e)
+    assert 'https://acme.example.org/directory' in str(e.value)
+    assert 'https://acme2.example.org/directory' in str(e.value)
 
 
 ### [account] dir
@@ -76,14 +76,14 @@ def test_account_dir():
 ### [account] unknown option
 
 def test_warning_on_unknown_account_option():
-    with pytest.warns(config.UnusedOptionWarning) as e:
+    with pytest.warns(config.UnusedOptionWarning) as w:
         parse('''
             [account]
             acme_server = https://acme.example.org/directory
             [mgmt]
             ''')
-    assert 'acme_server' in str(e[0].message)
-    assert 'https://acme.example.org/directory' in str(e[0].message)
+    assert 'acme_server' in str(w[-1].message)
+    assert 'https://acme.example.org/directory' in str(w[-1].message)
 
 
 ### [mgmt] mgmt
@@ -95,7 +95,7 @@ def test_simple_mgmt_listener():
         acme-server = https://acme.example.org/directory
         [mgmt]
         listener=127.0.0.1:13
-        listener=[fe80::abba:abba%eth0]:1380
+        listener=[fe80::abba:abba%lo]:1380
         ''')
     assert len(config.mgmt_listeners) is 2
     l = config.mgmt_listeners
@@ -103,8 +103,11 @@ def test_simple_mgmt_listener():
     assert l[0][4][0] == '127.0.0.1'
     assert l[0][4][1] == 13
     assert l[1][0] is socket.AF_INET6
-    assert l[1][4][0] == 'fe80::abba:abba%eth0'
+    # Since Python 3.7, the interface name is removed as the interface number
+    # is stored as fourth value in the tuple
+    assert l[1][4][0] in ['fe80::abba:abba%lo', 'fe80::abba:abba']
     assert l[1][4][1] == 1380
+    assert l[1][4][3] == socket.if_nametoindex('lo')
 
 
 def test_default_mgmt_listener():
@@ -138,7 +141,7 @@ def test_unix_socket_as_mgmt_listener():
             [mgmt]
             listener=/run/acmems/mgmt.sock
             ''')
-    assert 'unix socket' in str(e)
+    assert 'unix socket' in str(e.value)
 
 
 ### [mgmt] max size
@@ -181,26 +184,26 @@ def test_max_size_options_in_mbytes():
 ### [mgmt] unknown option
 
 def test_warning_on_unknown_mgmt_option():
-    with pytest.warns(config.UnusedOptionWarning) as e:
+    with pytest.warns(config.UnusedOptionWarning) as w:
         parse('''
             [account]
             [mgmt]
             manager = https://acme.example.org/directory
             ''')
-    assert 'manager' in str(e[0].message)
-    assert 'https://acme.example.org/directory' in str(e[0].message)
+    assert 'manager' in str(w[-1].message)
+    assert 'https://acme.example.org/directory' in str(w[-1].message)
 
 
 ### unknown section
 
 def test_warning_on_unknown_section():
-    with pytest.warns(config.UnusedSectionWarning) as e:
+    with pytest.warns(config.UnusedSectionWarning) as w:
         parse('''
             [account]
             [mgmt]
             [unknown]
             ''')
-    assert 'unknown' in str(e[0].message)
+    assert 'unknown' in str(w[-1].message)
 
 
 ### http verification
@@ -237,7 +240,7 @@ def test_unix_socket_as_http_listener():
             type=http01
             listener=/run/acmems/http.sock
             ''')
-    assert 'unix socket' in str(e)
+    assert 'unix socket' in str(e.value)
 
 
 ### dns verification
@@ -343,7 +346,7 @@ def test_not_other_none_storage_options():
             type = none
             other = test
             ''')
-    assert 'other' in str(e)
+    assert 'other' in str(e.value)
 
 
 def test_implicit_default_storage():

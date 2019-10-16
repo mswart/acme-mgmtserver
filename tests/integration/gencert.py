@@ -1,8 +1,19 @@
 #!/usr/bin/env python3
+import os
 import subprocess
+import sys
 import time
 
-server = subprocess.Popen(['bin/acmems', 'configs/integration.ini'])
+if sys.argv[1] == 'generic':
+    # we do not have any ACME server as backend
+    sys.exit(0)
+
+env = dict(os.environ)
+env['FAKE_DNS'] = subprocess.check_output("ip addr show docker0 | awk 'match($0, /([0-9.]+)\/[0-9]+/, a) { print a[1] }'", shell=True).strip().decode('utf-8')
+if sys.argv[1] == 'pebble':
+    env['ACME_CAFILE'] = '/home/travis/build/letsencrypt/pebble/pebble.minica.pem'
+
+server = subprocess.Popen(['bin/acmems', 'configs/integration-{}.ini'.format(sys.argv[1])], env=env)
 time.sleep(2)
 
 try:

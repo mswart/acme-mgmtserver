@@ -1,32 +1,26 @@
 #!/bin/bash
-set -ex
-eval "$(gimme 1.6)"
+set -e
+
+export FAKE_DNS=$(ip addr show docker0 | awk 'match($0, /([0-9.]+)\/[0-9]+/, a) { print a[1] }')
+sed -i -e s/127.0.0.1:5002/${FAKE_DNS}:5002/ configs/integration-boulder.ini
+
 export GOPATH=~/build/go
-export PATH=$PATH:$GOPATH/bin:$GOPATH/src/github.com/letsencrypt/boulder/bin:~/bin
 mkdir -p $GOPATH/src/github.com/letsencrypt/
-git clone git://github.com/letsencrypt/boulder.git --branch hotfixes/2016-06-30 $GOPATH/src/github.com/letsencrypt/boulder
+git clone git://github.com/letsencrypt/boulder.git $GOPATH/src/github.com/letsencrypt/boulder
 cd $GOPATH/src/github.com/letsencrypt/boulder
-sed -i -e 's/-u root/-u boulder -ptest/' test/create_db.sh
 
-go get -v \
-  bitbucket.org/liamstask/goose/cmd/goose \
-  github.com/golang/lint/golint \
-  github.com/golang/mock/mockgen \
-  github.com/golang/protobuf/proto \
-  github.com/golang/protobuf/protoc-gen-go \
-  github.com/jsha/listenbuddy \
-  github.com/kisielk/errcheck \
-  github.com/mattn/goveralls \
-  github.com/modocache/gover \
-  github.com/tools/godep \
-  golang.org/x/tools/cover
+docker-compose up -d
 
-make GO_BUILD_FLAGS=''
+echo 'waiting for boulder to be functional ...'
 
-go run cmd/rabbitmq-setup/main.go -server amqp://boulder-rabbitmq
+while true; do
+  curl http://127.0.0.1:4001/directory && break
+  sleep 1
+  if [[ "$SECONDS" -gt 300 ]]; then
+    echo 'setup took more than 5 minutes, give up  :-('
+    docker-compose logs
+    exit 3
+  fi
+done
 
-./test/create_db.sh
-
-nohup python2.7 start.py &
-sleep 2
-cat nohup.out
+docker-compose logs

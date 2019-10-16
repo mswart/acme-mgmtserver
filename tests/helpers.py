@@ -1,5 +1,6 @@
 import io
 from datetime import datetime, timedelta
+import random
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization as pem_serialization
@@ -21,15 +22,12 @@ def M(configcontent, connect=False, validator=None):
     return manager.ACMEManager(c, connect=connect)
 
 
-def MA(dir, connect=True, validator=None):
-    return M('''[account]
-        dir = {}
-        acme-server = http://127.0.0.1:4000/directory
-        [mgmt]
-        [auth "all"]
+def MA(conf, connect=True, validator=None):
+    return M(conf + '''[auth "all"]
         all=yes
         domain=*
-        '''.format(dir), connect=connect, validator=validator)
+        ''', connect=connect, validator=validator)
+
 
 
 def gencsrpem(domains, key):
@@ -37,11 +35,10 @@ def gencsrpem(domains, key):
     csr = x509.CertificateSigningRequestBuilder().subject_name(x509.Name([
         x509.NameAttribute(NameOID.COMMON_NAME, domains[0]),
     ]))
-    if len(domains) > 1:
-        csr = csr.add_extension(
-            x509.SubjectAlternativeName([x509.DNSName(domain) for domain in domains]),
-            critical=False,
-        )
+    csr = csr.add_extension(
+        x509.SubjectAlternativeName([x509.DNSName(domain) for domain in domains]),
+        critical=False,
+    )
     csr = csr.sign(key, hashes.SHA256(), default_backend())
     return csr.public_bytes(pem_serialization.Encoding.PEM)
 
@@ -71,3 +68,16 @@ def signcsr(csrpem, key, period, issued_before=None):
         cert.public_bytes(pem_serialization.Encoding.PEM).decode('utf-8'),
         cert.public_bytes(pem_serialization.Encoding.PEM).decode('utf-8')
     ])
+
+
+def extract_alt_names(obj):
+    try:
+        extension = obj.to_cryptography().extensions \
+            .get_extension_for_oid(x509.ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
+        return extension.value.get_values_for_type(x509.DNSName)
+    except x509.extensions.ExtensionNotFound:
+        return []
+
+def randomize_domains(*domains, suffix=''):
+    rand = random.randint(0, 2**16)
+    return [(domain + suffix).format(rand) for domain in domains]

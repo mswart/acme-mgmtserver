@@ -1,17 +1,20 @@
 import os.path
 import time
 from datetime import datetime, timedelta
-
-import OpenSSL.crypto
+import logging
 
 import acme.client
 import acme.messages
-import acme.jose
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization as pem_serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+import josepy.jwk
+import josepy.util
+
 
 from acmems import exceptions
+
+logger = logging.getLogger(__name__)
 
 
 class ACMEManager():
@@ -28,15 +31,9 @@ class ACMEManager():
         self.responses = {}
         self.authzrs = {}
         self.config = config
+        self.directory = None
         if connect:
             self.connect()
-
-    def log(self, *args):
-        ''' log something
-
-        .. todo::
-            Switch to real logging'''
-        print(*args)
 
     # ----------------------------------------------------------
     # 1. generall ACME account handling (keys, registration ...)
@@ -71,7 +68,7 @@ class ACMEManager():
             raise exceptions.AccountError('Key {} not found'
                                           .format(self.config.keyfile))
         # TODO - handle IOError; keyfile without valid key
-        self.key = acme.jose.JWKRSA(key=acme.jose.ComparableRSAKey(key))
+        self.key = josepy.jwk.JWKRSA(key=josepy.util.ComparableRSAKey(key))
 
     def create_private_key(self, force=False, key_size=4096):
         ''' create new private key to be used for identify ourself against
@@ -101,34 +98,58 @@ class ACMEManager():
         # verify that everythings works by reading the key from disk
         self.load_private_key()
 
+    def load_directory(self):
+        self.directory = acme.messages.Directory.from_json(
+            acme.client.ClientNetwork(None, verify_ssl=os.getenv('ACME_CAFILE', True)).get(self.config.acme_server).json()
+        )
+
     def init_client(self):
         ''' create ACME client
         '''
-        self.client = acme.client.Client(self.config.acme_server, self.key)
+        self.directory or self.load_directory()
+        net = acme.client.ClientNetwork(self.key, verify_ssl=os.getenv('ACME_CAFILE', True))
+        directory = acme.messages.Directory.from_json(
+            net.get(self.config.acme_server).json()
+        )
+        self.client = acme.client.ClientV2(directory, net)
 
-    def register(self, emails=[]):
+    def register(self, emails=[], tos_agreement=None):
         resource = acme.messages.NewRegistration(
             key=self.key.public_key(),
-            contact=tuple(
-                ['mailto:{}'.format(mail) for mail in emails]))
-        self.registration = self.client.register(resource)
+            contact=tuple(['mailto:{}'.format(mail) for mail in emails]),
+            terms_of_service_agreed=bool(tos_agreement)
+        )
+        try:
+            self.registration = self.client.new_account(resource)
+        except acme.messages.Error as err:
+            if err.typ == 'urn:ietf:params:acme:error:agreementRequired':
+                raise exceptions.NeedToAgreeToTOS(self.client.directory.meta.terms_of_service)
+            elif err.typ == 'urn:ietf:params:acme:error:malformed' and 'must agree to terms of service' in err.detail:
+                # fallback for boulder :-(
+                raise exceptions.NeedToAgreeToTOS(self.client.directory.meta.terms_of_service)
+            raise
         self.dump_registration()
 
     def tos_agreement_required(self):
-        if self.registration.body.agreement is not True:
-            return self.registration.terms_of_service
+        self.directory or self.load_directory()
+        if 'terms_of_service' not in self.directory.meta:
+            return None
+        if not hasattr(self, 'registration'):
+            return self.directory.meta.terms_of_service
+        return False
 
     def accept_terms_of_service(self, url):
-        newreg = self.registration.update(
-            body=self.registration.body.update(agreement=url)
-        )
-        self.registration = self.client.update_registration(newreg)
+        assert url is not False
+        self.registration.body.update(terms_of_service_agreed=True)
+        self.dump_registration()
 
     def dump_registration(self):
         with open(self.config.registration_file, 'w') as f:
             f.write(self.registration.json_dumps_pretty())
+        self.client.net.account = self.registration
 
     def refresh_registration(self):
+        #return
         # Register or validate and update our registration.
         existing_regr = None
 
@@ -141,184 +162,68 @@ class ACMEManager():
             raise exceptions.AccountError('Key is not yet registered'
                                           ' or registration is losted!')
         existing_regr = self.registration.json_dumps()
+        self.client.net.account = self.registration
         self.registration = self.client.query_registration(self.registration)
 
         if existing_regr != self.registration.json_dumps():
             self.dump_registration()
 
         # the terms of server needs to be agreed to use the ACME server!
-        if not self.registration.body.agreement:
+        if self.tos_agreement_required():
             raise exceptions.NeedToAgreeToTOS(
-                self.registration.terms_of_service)
+                self.tos_agreement_required)
 
     # ---------------------------------------------------------
     # 2. the real part (handling authorizations + certificates)
     # ---------------------------------------------------------
 
-    def acquire_domain_validations(self, validator, domains):
+    def acquire_domain_validations(self, validator, csrpem):
         ''' requests for all given domains domain validations
             If we have cached a valid challenge return this.
             Expired challenges will clear automatically; invalided challenges
             will not.
 
-            :param domains: List of domains to validate
-            :type domains: list of `str`
+            :param csrpem: certificate sign request
+            :type domains: `str`
             :returns: Challenges for the requested domains
             :rtype: acme.messages.ChallengeBody
         '''
-        while True:
-            authzrs = []
-            request_events = []  # we wait for same challenges to be requested
-            wait_until = None
-            for domain in domains:
-                try:
-                    authzr = self.authzrs.get(domain, None)
-                    if authzr:
-                        authzrs.append(self.evaluate_domain_authorization(authzr, validator))
-                    else:
-                        authzrs.append(self.new_domain_authorization(validator, domain))
-                except exceptions.AuthorizationNotYetProcessed as e:
-                    # we have to wait until validation is decided
-                    wait_until = max(wait_until or datetime.min,
-                                     e.wait_until)
-                except exceptions.AuthorizationNotYetRequested as e:
-                    request_events.append(e.event)
-            # some challenges are new; wait until someone (hopefully the ACME
-            # server) requests the challenges until further processing
-            if request_events:
-                for event in request_events:
-                    event.wait(timeout=10)
-                # give the ACME server 1 second to process the response
-                wait_until = max(wait_until or datetime.min,
-                                 datetime.now() + timedelta(seconds=1))
-            if wait_until:
-                wait_time = wait_until - datetime.now()
-                self.log('Next authorization poll in {}s ...'.format(wait_time))
-                time.sleep(wait_time.total_seconds())
-            else:
-                return authzrs
-
-    def evaluate_domain_authorization(self, authzr, validator, refresh_timer=None):
-        ''' Processes a given AuthorizationResource that was fetch from
-            the authzrs cache or updated by `refresh_domain_authorization` /
-            `acme.client.Client.poll`.
-
-            Renew revoked or expired ones.
-            Refresh pending/processing authorizations
-
-            :param acme.messages.AuthorizationResource authzr: the authzr in
-                question
-            :return: a valid authzr
-            :rtype: acme.messages.AuthorizationResource
-            :raises acmems.exceptions.AuthorizationNotYetProcessed: We have to
-                wait while the ACME server processes the autzr
-            :raises acmems.exceptions.AuthorizationNotYetRequested: new authzr
-                created; have to wait until someone requests it
-            :raises acmems.exceptions.ChallengesUnknownStatus: unknown status
-            :raises acmems.exceptions.NoChallengeMethodsSupported: HTTP01 is
-                not supported
-            :raises acmems.exceptions.ChallengeFailed: challenge failed
-        '''
-        authz = authzr.body
-        domain = authz.identifier.value
-        if authz.status.name == 'valid':
-            return authzr
-        elif self.invalid_authz(authz):
-            # remove auth
-            self.authzrs.pop(domain)
-            # request new validation
-            return self.new_domain_authorization(validator, domain)
-        elif authz.status.name == 'invalid':
-            message = '; '.join(c.error.detail
-                                for c in authz.challenges
-                                if c.status.name == 'invalid')
-            raise exceptions.ChallengeFailed(domain, message, authzr.uri)
-        elif authz.status.name in ('pending', 'processing'):
-            # validation in process; check for updates ...
-            if refresh_timer:  # we already did a refresh, wait for changes
-                raise exceptions.AuthorizationNotYetProcessed(refresh_timer)
-            else:
-                return self.refresh_domain_authorization(validator, domain)
-        else:
-            raise exceptions.ChallengesUnknownStatus(authz.status.name)
-
-    def invalid_authz(self, authz):
-        if authz.status.name == 'revoked':
-            return True
-        return (authz.expires.replace(tzinfo=None) - datetime.utcnow()) \
-            < timedelta(seconds=2 * 24 * 3600)  # two days
-
-    def refresh_domain_authorization(self, validator, domain):
-        ''' Refreshes a authorization for status changes
-
-            :param str domain: domain name for the authorization
-            :return: a valid authzr
-            :rtype: acme.messages.AuthorizationResource
-            :raises acmems.exceptions.AuthorizationNotYetProcessed: We have to
-                wait while the ACME server processes the autzr
-            :raises acmems.exceptions.AuthorizationNotYetRequested: new authzr
-                created; have to wait until someone requests it
-            :raises acmems.exceptions.ChallengesUnknownStatus: unknown status
-            :raises acmems.exceptions.NoChallengeMethodsSupported: HTTP01 is
-                not supported
-        '''
-        self.log('Refresh authorization for {}'.format(domain))
-        self.authzrs[domain], resp = self.client.poll(self.authzrs[domain])
-        return self.evaluate_domain_authorization(
-            self.authzrs[domain], validator,
-            refresh_timer=self.client.retry_after(resp, default=10))
-
-    def new_domain_authorization(self, validator, domain):
-        ''' Requests a complete new authorization for the given domain
-
-            :param str domain: domain name for the authorization
-            :return: a valid authzr
-            :rtype: acme.messages.AuthorizationResource
-            :raises acmems.exceptions.AuthorizationNotYetProcessed: We have to
-                wait while the ACME server processes the autzr
-            :raises acmems.exceptions.AuthorizationNotYetRequested: new authzr
-                created; have to wait until someone requests it
-            :raises acmems.exceptions.ChallengesUnknownStatus: unknown status
-            :raises acmems.exceptions.NoChallengeMethodsSupported: HTTP01 is
-                not supported
-        '''
-        self.log('Requesting new authorization for {}'.format(domain))
+        logger.info('Requesting a new order for a certificate')
         try:
-            authzr = self.client.request_domain_challenges(
-                domain, self.registration.new_authzr_uri)
-            authz = authzr.body
+            order = self.client.new_order(csrpem)
         except acme.messages.Error as e:
-            if e.typ == 'urn:acme:error:malformed':
-                raise exceptions.InvalidDomainName(domain, e.detail)
-            raise
-        self.authzrs[domain] = authzr
-
-        if not validator.new_authorization(authz, self.client, self.key, domain):
-            # HTTP01 is not support; no clue what to do ...
-            raise exceptions.NoChallengeMethodsSupported(
-                'No supported challenge methods were offered for {}.'
-                .format(domain))
-
-    # cert_response.body and chain now hold OpenSSL.crypto.X509 objects.
-    # Convert them to PEM format.
-    @staticmethod
-    def cert_to_pem(cert):
-        return OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_PEM, cert).decode('utf-8')
-
-    def issue_certificate(self, csr, authzrs):
-        # Request a certificate using the CSR and some number of domain validation challenges.
-        self.log("Requesting a certificate.")
-        try:
-            cert_response = self.client.request_issuance(acme.jose.ComparableX509(csr), authzrs)
-        except acme.messages.Error as e:
-            if e.typ == "urn:acme:error:rateLimited":
+            logger.info('Request for a new order has been declined')
+            if e.typ == 'urn:ietf:params:acme:error:rejectedIdentifier':
+                raise exceptions.InvalidDomainName('unknown', e.detail)
+            elif e.typ == 'urn:ietf:params:acme:error:rateLimited':
+                logger.warning('New certificate rejected due to rate limiting')
                 raise exceptions.RateLimited(e.detail)
+            raise
+        for authz in order.authorizations:
+            domain = authz.body.identifier.value
+            logger.info('processing authorization for %s', domain)
+            if not validator.new_authorization(authz.body, self.client, self.key, domain):
+                # HTTP01 is not support; no clue what to do ...
+                raise exceptions.NoChallengeMethodsSupported(
+                    'No supported challenge methods were offered for {}.'
+                    .format(domain))
+        logger.info('Awaiting for authorization to be validated')
+        try:
+            return self.client.poll_authorizations(order, datetime.now() + timedelta(seconds=90))
+        except acme.errors.ValidationError:
+            logger.error('Authorizations could not be validated!')
+            raise exceptions.ChallengeFailed()
+
+    def issue_certificate(self, order):
+        # Request a certificate using the CSR and some number of domain validation challenges.
+        logger.info('Requesting a certificate for order')
+        try:
+            order = self.client.finalize_order(order, datetime.now() + timedelta(seconds=90))
+        except acme.messages.Error as e:
+            if e.typ == 'urn:ietf:params:acme:error:rateLimited':
+                logger.warning('New certificate rejected due to rate limiting')
+                raise exceptions.RateLimited(e.detail)
+            logger.warning('Certificate issueing failed')
             raise  # unhandled
-
-        certs = [self.cert_to_pem(cert_response.body)]
-
-        # Get the certificate chain.
-        for cert in self.client.fetch_chain(cert_response):
-            certs.append(self.cert_to_pem(cert))
-
-        return tuple(certs)
+        logger.info('New certificate issued')
+        return order.fullchain_pem.replace('-----END CERTIFICATE-----', '-----END CERTIFICATE-----\n').strip()

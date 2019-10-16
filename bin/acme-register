@@ -76,10 +76,15 @@ print(' done')
 if args.register:
     print('Register ...', end='')
     sys.stdout.flush()
-    manager.register(emails=args.emails)
+    manager.register(emails=args.emails, tos_agreement=args.accept_terms_of_service)
     print(' done')
     if manager.tos_agreement_required():
         print('You need to accept the terms of service at {}'.format(manager.tos_agreement_required()))
+elif args.accept_terms_of_service:
+    print('Accepting ToS at {} ...'.format(args.accept_terms_of_service), end='')
+    sys.stdout.flush()
+    manager.accept_terms_of_service(args.accept_terms_of_service)
+    print(' done')
 else:
     print('Refreshing current registration ...', end='')
     sys.stdout.flush()
@@ -90,9 +95,3 @@ else:
         print('You need to accept the terms of service at {}'.format(e.url))
     else:
         print(' done')
-
-if args.accept_terms_of_service:
-    print('Accepting ToS at {} ...'.format(args.accept_terms_of_service), end='')
-    sys.stdout.flush()
-    manager.accept_terms_of_service(args.accept_terms_of_service)
-    print(' done')

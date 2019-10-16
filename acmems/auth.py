@@ -1,29 +1,35 @@
-import warnings
-from fnmatch import fnmatch
-import hmac
-import hashlib
+'''
+    This modules organize the decision making whether the signing request is
+    valid and should be processed or unauthorized and should be rejected.
 
-from OpenSSL import crypto
-import pyasn1.type
-from pyasn1.codec.der import decoder
-from ndg.httpsclient.subj_alt_name import SubjectAltName as BaseSubjectAltName
+    The main external interfaced is constructed with the `.Authenticator`:
+    it tangles everything together. The `.Processor` implemented the generel
+    decision process by iterating through all available authentication blocks
+    and invokes every referenced auchentication mothod to execute it
+    authentication and autorisation itself.
+'''
+
+import logging
+from fnmatch import fnmatch
+import hashlib
+import hmac
+import warnings
+
+from cryptography import x509
+import cryptography.exceptions
 from IPy import IP
+from OpenSSL import crypto
 
 from acmems import exceptions
 
 
-### Note: This is a slightly bug-fixed version of same from ndg-httpsclient.
-class SubjectAltName(BaseSubjectAltName):
-    '''ASN.1 implementation for subjectAltNames support'''
-
-    # There is no limit to how many SAN certificates a certificate may have,
-    #   however this needs to have some limit so we'll set an arbitrarily high
-    #   limit.
-    sizeSpec = pyasn1.type.univ.SequenceOf.sizeSpec + \
-        pyasn1.type.constraint.ValueSizeConstraint(1, 1024)
+logger = logging.getLogger(__name__)
 
 
 class Authenticator():
+    ''' Cooridantes the authentication. It stores to configuration with all
+        known authentication blocks.
+    '''
     def __init__(self, config=None):
         self.config = config
         self.blocks = []
@@ -32,6 +38,9 @@ class Authenticator():
         self.blocks.append(Block(name, options, self.config))
 
     def process(self, client_address, headers, rfile):
+        ''' Executes the request authentication by delicating it to the
+            `.Processor`.
+        '''
         return Processor(self, client_address, headers, rfile)
 
 
@@ -127,7 +136,8 @@ class Block():
             return False
         for method in self.methods:
             if not method.possible(processor):
-                print('block {} excluded by {}'.format(self.name, method.__class__.__name__))
+                logger.debug('block %s excluded by %s',
+                             self.name, method.__class__.__name__)
                 return False
         return True
 
@@ -246,21 +256,14 @@ class Processor():
             raise exceptions.PayloadToLarge(size=content_length, allowed=self.auth.config.max_size)
         self.csrpem = self.rfile.read(content_length)
         self.csr = crypto.load_certificate_request(crypto.FILETYPE_PEM, self.csrpem)
-        self.common_name = self.csr.get_subject().CN
-        self.dns_names = []
-        for ext in self.csr.get_extensions():
-            if ext.get_short_name() != b'subjectAltName':
-                continue
-            general_names = SubjectAltName()
-            data = ext.get_data()
-            decoded_dat = decoder.decode(data, asn1Spec=general_names)
-            for name in decoded_dat:
-                if not isinstance(name, SubjectAltName):
-                    continue
-                for entry in range(len(name)):
-                    component = name.getComponentByPosition(entry)
-                    if component.getName() != 'dNSName':
-                        continue
-                    self.dns_names.append(str(component.getComponent()))
+        csr = self.csr.to_cryptography()
+        self.common_name = csr.subject.get_attributes_for_oid(
+            x509.oid.NameOID.COMMON_NAME)[0].value
+        try:
+            extension = csr.extensions.get_extension_for_oid(
+                x509.ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
+            self.dns_names = extension.value.get_values_for_type(x509.DNSName)
+        except x509.extensions.ExtensionNotFound:
+            self.dns_names = []
         if self.common_name not in self.dns_names:
             self.dns_names.insert(0, self.common_name)

@@ -14,7 +14,7 @@ This tools is yet another ACME client ... but as a client/server model.
 Some aspects are special:
 
 * **ACME handling can be put into own VM / container ...**: The server can be placed into an own VM, container, network segment to limit the security risk on compromised systems.
-* **Only the server requires all the ACME dependencies**: The clients require only a SSL tool like OpenSSL and a HTTP client like wget or curl, no python, no build tools. Python with python-acme and its dependencies (PyOpenSSL, PyASN.1, ...) is only needed for the server.
+* **Only the server requires all the ACME dependencies**: The clients require only a SSL tool like OpenSSL and a HTTP client like wget or curl, no python, no build tools. Python with python-acme and its dependencies (PyOpenSSL, Cryptography, ...) is only needed for the server.
 * **Supports distributed web servers**: All `.well-known/acme-challenges` requests for all domains can be served directly by the server. This makes it easy to validate domains when using multiple web server in distributed or fail-over fashion by forwarding all `.well-known/acme-challenges` requests.
 * **Only the server needs the ACME account information**: It is not that security relevant, but only the ACME Management Server needs access to the account information / key for the ACME server like LetsEncrypt.
 * **Caching CSR signs**: The returned signed certificate of a CSR is cached until the certificate is nearly expired (per default two week). If two machines have manual shared a key and CSR and they reusing both, they will both get from ACMEMS the same certificate back.
@@ -64,9 +64,7 @@ ACMEMS can instrument DNS servers to serve the needed `TXT` records to validate 
 
 ### Debian Packages
 
-My preferred installation method are distribution packages. `python-acme` and `pyopenssl` are needed in as of 2015Q4 new versions. It is time-consuming to backport all needed dependencies. Therefore I currently only maintain packages for Ubuntu 16.04 LTS Xenial in my own [PPA](https://launchpad.net/~malte.swart/+archive/ubuntu/acme). The dependencies were backported to `jessie-backports`, so the PPA should also work with `jessie-backports`.
-
-To use `DNS01` challenge `python-acme` >= 0.9 is needed. The PPA contains a backported version.
+My preferred installation method are distribution packages. I try to published a packaged version in my own [PPA](https://launchpad.net/~malte.swart/+archive/ubuntu/acme). To goal is to support the current LTS version and the previous version for a upgrade period. The software dependencies should be directly available as distribution packages.
 
 ### PyPI
 
@@ -94,7 +92,7 @@ mgmt=192.0.2.13:1313
 max-size = 4k
 # define which verification block is used by default
 default-verification = http
-# should be signed certificates be stored
+# should signed certificates be cached? if yes, how?
 default-storage = file
 
 # Define verification blocks
@@ -122,11 +120,13 @@ timeout=30
 type = none
 
 [storage "file"]
-# caching on disk, the directory must be write for the daemon
+# caching on disk, the directory must be writeable for the daemon
 type = file
 directory=/etc/acmems/storage
-# timespan (currently only in days) until a certificate expiry date
-# within the ACMEMS should reissue the certificate
+# cached certificates will be treated outdated if their expire date is less 
+# than $renew-within$ days away. A new certificate will be issued for the 
+# passed CSR, stored and returned in subsequencial requests
+# defaults to 14 days - around 30 days is recommended by letsencrypt
 renew-within=14
 
 # Define multiple authentification blocks
@@ -146,7 +146,7 @@ domain=*.test.example.org
 
 # CSR must also be signed by HMAC (via a the secret key)
 [auth "mail-secure"]
-# uise special verification and storage
+# use special verification and storage
 verification = dns
 storage = file
 ip=198.51.100.21
@@ -258,14 +258,16 @@ Error code:
 * **403**: Signing is denied, have a look at your auth blocks / authentication methods; are you missing an `Authentication` header?
 * **413**: CSR request is too long. You might increase the `max-size` setting.
 * **415**: CSR could not be parsed.
+* **421**: Challenge validation failed (temporarily)
+* **429**: Rated limited (currently only based on ACME upstream errors)
 * **500**: Internal exception - take a look at the log and report the bug.
 
 
 ## Testing
 
-The server is mostly tests (some boulder error responses are difficult to reproduce). You need `py.test` to run the tests.
+The server is tested by unit tests, integration tests against test ACME servers ([Boulder](https://github.com/letsencrypt/boulder) and [Pebble](https://github.com/letsencrypt/boulder)) and with end-to-end tests. All major features should be covered like authentication, HTTP requests, validation methods (HTTP01, DNS01), different CSR and certificate algorithms (RSA and EC).
 
-The tests marked as `boulder` need a local ACME server listening on `127.0.0.1:4000` sends all HTTP01 test challenges to `127.0.0.1:5002`. To install boulder take a look at the [Boulder README](https://github.com/letsencrypt/boulder) and/or at the prepare scripts for travis to setup boulder (`tests/scripts`).
+The test are exectued by `py.test`. `docker-compose` is used to run the ACME servers. Take a look at `tests/scripts` to inspect the commands, that are run on TravisCI.
 
 
 ## Contributing
@@ -278,8 +280,9 @@ The tests marked as `boulder` need a local ACME server listening on `127.0.0.1:4
 6. Push to the branch (git push origin my-new-feature)
 7. Create new Pull Request
 
+
 ## License
 
 GPL License
 
-Copyright (c) 2015-2016, Malte Swart
+Copyright (c) 2015-2019, Malte Swart
