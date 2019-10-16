@@ -7,6 +7,27 @@ This page lists all versions with its changes. ACMEMS follows Semantic Versionin
 Version 0
 -------------------------
 
+
+v0.4.0
+^^^^^^
+
+Stabilization towards 1.0 release:
+
+* Support newer `python-acme` releases
+* handling nonce errors (with updated acme library), fixes #8
+* switch to ACME v2 endpoints
+* support for wildcard domains
+* a basic logging framework, fixes #3
+* test against multiple ACME backends (https://github.com/letsencrypt/boulder
+  and https://github.com/letsencrypt/pebble)
+* use docker-compose for simple and reliable ACME backend setup
+* Refresh supported Python versions (add new released major versions,
+  drop unsupported old ones): target 3.5 to 3.8 for now
+* Dedicated HTTP error codes for rating limiting and validation errors
+* Simplified Python dependencies: only use PyOpenSSL and cryptograph to
+  parse CSR and during tests
+
+
 v0.3.1
 ^^^^^^
 
