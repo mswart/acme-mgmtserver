@@ -8,6 +8,12 @@ Version 0
 -------------------------
 
 
+v0.4.1
+^^^^^^
+
+Fix PyPI deployment bug (missing long description content type)
+
+
 v0.4.0
 ^^^^^^
 
