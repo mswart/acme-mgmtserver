@@ -10,7 +10,7 @@ cd ~/build/letsencrypt/pebble
 wget https://raw.githubusercontent.com/letsencrypt/pebble/master/test/certs/pebble.minica.pem
 wget https://raw.githubusercontent.com/letsencrypt/pebble/master/docker-compose.yml
 
-sed -i -e 's/ -strict//' docker-compose.yml
+sed -i -e 's/ -strict//' -e '/environment:/a\      PEBBLE_WFE_NONCEREJECT: "0"' docker-compose.yml
 
 docker-compose up -d
 
