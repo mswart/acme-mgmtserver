@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import os.path
 import subprocess
 import sys
 import time
@@ -11,7 +12,7 @@ if sys.argv[1] == 'generic':
 env = dict(os.environ)
 env['FAKE_DNS'] = subprocess.check_output("ip addr show docker0 | awk 'match($0, /([0-9.]+)\/[0-9]+/, a) { print a[1] }'", shell=True).strip().decode('utf-8')
 if sys.argv[1] == 'pebble':
-    env['ACME_CAFILE'] = '/home/travis/build/letsencrypt/pebble/pebble.minica.pem'
+    env['ACME_CAFILE'] = os.path.expanduser('~/build/letsencrypt/pebble/pebble.minica.pem')
 
 server = subprocess.Popen(['bin/acmems', 'configs/integration-{}.ini'.format(sys.argv[1])], env=env)
 time.sleep(2)

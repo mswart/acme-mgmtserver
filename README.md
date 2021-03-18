@@ -1,7 +1,10 @@
 ACME Management Server (ACMEMS)
 ===============================
 
-[![Build Status](https://img.shields.io/travis/mswart/acme-mgmtserver/master.svg)](https://travis-ci.org/mswart/acme-mgmtserver) [![Build Status](https://img.shields.io/pypi/v/acme-mgmtserver.svg)](https://pypi.python.org/pypi/acme-mgmtserver) [![Python Versions](https://img.shields.io/pypi/pyversions/acme-mgmtserver.svg)](https://pypi.python.org/pypi/acme-mgmtserver) [![PyPi Status](https://img.shields.io/pypi/status/acme-mgmtserver.svg)](https://pypi.python.org/pypi/acme-mgmtserver)
+[![Build Status](https://github.com/mswart/acme-mgmtserver/actions/workflows/push+deploy.yml/badge.svg)](https://github.com/mswart/acme-mgmtserver/actions/workflows/push+deploy.yml)
+[![Build Status](https://img.shields.io/pypi/v/acme-mgmtserver.svg)](https://pypi.python.org/pypi/acme-mgmtserver)
+[![Python Versions](https://img.shields.io/pypi/pyversions/acme-mgmtserver.svg)](https://pypi.python.org/pypi/acme-mgmtserver)
+[![PyPi Status](https://img.shields.io/pypi/status/acme-mgmtserver.svg)](https://pypi.python.org/pypi/acme-mgmtserver)
 
 
 [LetsEncrypt](https://letsencrypt.org) supports issuing free certificates by communication via ACME - the Automatically Certificate Management Evaluation protocol.
@@ -267,7 +270,7 @@ Error code:
 
 The server is tested by unit tests, integration tests against test ACME servers ([Boulder](https://github.com/letsencrypt/boulder) and [Pebble](https://github.com/letsencrypt/boulder)) and with end-to-end tests. All major features should be covered like authentication, HTTP requests, validation methods (HTTP01, DNS01), different CSR and certificate algorithms (RSA and EC).
 
-The test are exectued by `py.test`. `docker-compose` is used to run the ACME servers. Take a look at `tests/scripts` to inspect the commands, that are run on TravisCI.
+The test are exectued by `py.test`. `docker-compose` is used to run the ACME servers. Take a look at `tests/scripts` to inspect the commands, that are run as part of the CI.
 
 
 ## Contributing
@@ -285,4 +288,4 @@ The test are exectued by `py.test`. `docker-compose` is used to run the ACME ser
 
 GPL License
 
-Copyright (c) 2015-2019, Malte Swart
+Copyright (c) 2015-2021, Malte Swart
