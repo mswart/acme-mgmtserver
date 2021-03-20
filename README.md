@@ -273,6 +273,13 @@ The server is tested by unit tests, integration tests against test ACME servers 
 The test are exectued by `py.test`. `docker-compose` is used to run the ACME servers. Take a look at `tests/scripts` to inspect the commands, that are run as part of the CI.
 
 
+## Support
+
+The goal is to be compatible with all supported Python versions. But adjusting the CI and publishing a new release might take some time. This primarily means that removing support for a EOL Python version is not considered a breaking change and will happen in normal minor releases (but not in patch/bug-fix releases).
+
+Recently new dependency version are expected. This is difficult to pin-point at the moment, but the idea is to be compatible with the version from the latest Ubuntu LTS and Debian releases. The minimal dependency versions are tried to express. But as the CI does not run tests for all existing versions, they could be slightly out-of-date from time to time.
+
+
 ## Contributing
 
 1. Fork it
