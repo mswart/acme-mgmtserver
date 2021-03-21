@@ -2,3 +2,7 @@
 line-length = 100
 target-version = ['py36']
 skip-string-normalization = true
+
+[tool.pylint.'MESSAGES CONTROL']
+max-line-length = 100
+disable = "C0111"
