@@ -9,7 +9,7 @@ from cryptography.hazmat.backends import default_backend
 from acmems.config import ConfigurationError
 
 
-class StorageImplementor():
+class StorageImplementor:
     def __init__(self, type, name, options):
         self.type = type
         self.name = name
@@ -19,7 +19,11 @@ class StorageImplementor():
 class NoneStorageImplementor(StorageImplementor):
     def parse(self, options):
         if len(options) > 0:
-            raise ConfigurationError('none storage does not support any options, but found "{}"'.format('", "'.join(o[0] for o in options)))
+            raise ConfigurationError(
+                'none storage does not support any options, but found "{}"'.format(
+                    '", "'.join(o[0] for o in options)
+                )
+            )
 
     def from_cache(self, csr):
         return None

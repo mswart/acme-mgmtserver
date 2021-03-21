@@ -109,7 +109,14 @@ def test_accept_by_ip_with_correct_domain(a, ckey):
 
 
 def test_accept_by_some_ip_with_correct_domain(a, ckey):
-    a.parse_block('all', [('ip', '198.51.100.0/24'), ('ip', '192.0.2.0/24'), ('domain', '*.example.org')])
+    a.parse_block(
+        'all',
+        [
+            ('ip', '198.51.100.0/24'),
+            ('ip', '192.0.2.0/24'),
+            ('domain', '*.example.org'),
+        ],
+    )
     with a.process(*args(ckey, '192.0.2.34', 'test.example.org')) as p:
         assert p.acceptable() is True
 
@@ -140,25 +147,53 @@ def test_reject_multiple_correct_domains_from_different_blocks(a, ckey):
 
 
 def test_accept_multiple_correct_domains(a, ckey):
-    a.parse_block('all', [('ip', '192.0.2.0/24'), ('domain', 'test.example.org'), ('domain', 'www.example.com')])
+    a.parse_block(
+        'all',
+        [
+            ('ip', '192.0.2.0/24'),
+            ('domain', 'test.example.org'),
+            ('domain', 'www.example.com'),
+        ],
+    )
     with a.process(*args(ckey, '192.0.2.34', 'test.example.org', 'www.example.com')) as p:
         assert p.acceptable() is True
 
 
 def test_accept_wildcard_domain(a, ckey):
-    a.parse_block('all', [('ip', '192.0.2.0/24'), ('domain', 'example.org'), ('domain', '*.example.com')])
+    a.parse_block(
+        'all',
+        [
+            ('ip', '192.0.2.0/24'),
+            ('domain', 'example.org'),
+            ('domain', '*.example.com'),
+        ],
+    )
     with a.process(*args(ckey, '192.0.2.34', 'example.org', '*.example.com')) as p:
         assert p.acceptable() is True
 
 
 def test_reject_wildcard_for_normal_domain(a, ckey):
-    a.parse_block('all', [('ip', '192.0.2.0/24'), ('domain', 'example.org'), ('domain', 'www.example.com')])
+    a.parse_block(
+        'all',
+        [
+            ('ip', '192.0.2.0/24'),
+            ('domain', 'example.org'),
+            ('domain', 'www.example.com'),
+        ],
+    )
     with a.process(*args(ckey, '192.0.2.34', 'example.org', '*.example.com')) as p:
         assert p.acceptable() is False
 
 
 def test_reject2_wildcard_for_normal_domain(a, ckey):
-    a.parse_block('all', [('ip', '192.0.2.0/24'), ('domain', 'mail.example.org'), ('domain', 'www.example.com')])
+    a.parse_block(
+        'all',
+        [
+            ('ip', '192.0.2.0/24'),
+            ('domain', 'mail.example.org'),
+            ('domain', 'www.example.com'),
+        ],
+    )
     with a.process(*args(ckey, '192.0.2.34', '*.example.com')) as p:
         assert p.acceptable() is False
 
@@ -167,43 +202,80 @@ def test_reject2_wildcard_for_normal_domain(a, ckey):
 
 
 def test_accept_by_ip_and_hmac_with_correct_domain(a, ckey):
-    a.parse_block('all', [
-        ('ip', '192.0.2.0/24'),
-        ('hmac_type', 'sha256'),
-        ('hmac_key', 'n55gzRK2UcGa8PqULwCmoeobbBw6pG'),
-        ('domain', '*.example.org')])
-    with a.process(*args(ckey, '192.0.2.34', 'test.example.org',
-                         hmac_type='sha256', hmac_key=b'n55gzRK2UcGa8PqULwCmoeobbBw6pG')) as p:
+    a.parse_block(
+        'all',
+        [
+            ('ip', '192.0.2.0/24'),
+            ('hmac_type', 'sha256'),
+            ('hmac_key', 'n55gzRK2UcGa8PqULwCmoeobbBw6pG'),
+            ('domain', '*.example.org'),
+        ],
+    )
+    with a.process(
+        *args(
+            ckey,
+            '192.0.2.34',
+            'test.example.org',
+            hmac_type='sha256',
+            hmac_key=b'n55gzRK2UcGa8PqULwCmoeobbBw6pG',
+        )
+    ) as p:
         assert p.acceptable() is True
 
 
 def test_reject_by_valid_ip_but_no_hmac_with_correct_domain(a, ckey):
-    a.parse_block('all', [
-        ('ip', '192.0.2.0/24'),
-        ('hmac_type', 'sha256'),
-        ('hmac_key', 'n55gzRK2UcGa8PqULwCmoeobbBw6pG'),
-        ('domain', '*.example.org')])
+    a.parse_block(
+        'all',
+        [
+            ('ip', '192.0.2.0/24'),
+            ('hmac_type', 'sha256'),
+            ('hmac_key', 'n55gzRK2UcGa8PqULwCmoeobbBw6pG'),
+            ('domain', '*.example.org'),
+        ],
+    )
     with a.process(*args(ckey, '192.0.2.34', 'test.example.org')) as p:
         assert p.acceptable() is False
 
 
 def test_reject_by_valid_ip_but_hmac_with_wrong_key_with_correct_domain(a, ckey):
-    a.parse_block('all', [
-        ('ip', '192.0.2.0/24'),
-        ('hmac_type', 'sha256'),
-        ('hmac_key', 'n55gzRK2UcGa8PqULwCmoeobbBw6pG'),
-        ('domain', '*.example.org')])
-    with a.process(*args(ckey, '192.0.2.34', 'test.example.org',
-                         hmac_type='sha256', hmac_key=b'FM278BKEq0q9IsTxi4SNQBTVbggPWf')) as p:
+    a.parse_block(
+        'all',
+        [
+            ('ip', '192.0.2.0/24'),
+            ('hmac_type', 'sha256'),
+            ('hmac_key', 'n55gzRK2UcGa8PqULwCmoeobbBw6pG'),
+            ('domain', '*.example.org'),
+        ],
+    )
+    with a.process(
+        *args(
+            ckey,
+            '192.0.2.34',
+            'test.example.org',
+            hmac_type='sha256',
+            hmac_key=b'FM278BKEq0q9IsTxi4SNQBTVbggPWf',
+        )
+    ) as p:
         assert p.acceptable() is False
 
 
 def test_reject_by_valid_ip_but_hmac_with_wrong_type_with_correct_domain(a, ckey):
-    a.parse_block('all', [
-        ('ip', '192.0.2.0/24'),
-        ('hmac_type', 'sha256'),
-        ('hmac_key', 'n55gzRK2UcGa8PqULwCmoeobbBw6pG'),
-        ('domain', '*.example.org')])
-    with a.process(*args(ckey, '192.0.2.34', 'test.example.org',
-                         hmac_type='sha384', hmac_key=b'n55gzRK2UcGa8PqULwCmoeobbBw6pG')) as p:
+    a.parse_block(
+        'all',
+        [
+            ('ip', '192.0.2.0/24'),
+            ('hmac_type', 'sha256'),
+            ('hmac_key', 'n55gzRK2UcGa8PqULwCmoeobbBw6pG'),
+            ('domain', '*.example.org'),
+        ],
+    )
+    with a.process(
+        *args(
+            ckey,
+            '192.0.2.34',
+            'test.example.org',
+            hmac_type='sha384',
+            hmac_key=b'n55gzRK2UcGa8PqULwCmoeobbBw6pG',
+        )
+    ) as p:
         assert p.acceptable() is False
