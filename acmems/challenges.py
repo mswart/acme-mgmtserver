@@ -13,7 +13,7 @@ from acmems.server import ThreadedACMEServerByType, ACMEHTTPHandler
 from acmems import exceptions
 
 
-class ChallengeImplementor():
+class ChallengeImplementor:
     def __init__(self, type, name, options):
         self.type = type
         self.name = name
@@ -36,17 +36,20 @@ class HttpChallengeImplementor(ChallengeImplementor):
                     host = host[1:-1]
                 self.listeners += socket.getaddrinfo(host, int(port), proto=socket.IPPROTO_TCP)
         if self.listeners is None:
-            self.listeners = socket.getaddrinfo('0.0.0.0', 1380, proto=socket.IPPROTO_TCP) \
-                + socket.getaddrinfo('::', 1380, proto=socket.IPPROTO_TCP)
+            self.listeners = socket.getaddrinfo(
+                '0.0.0.0', 1380, proto=socket.IPPROTO_TCP
+            ) + socket.getaddrinfo('::', 1380, proto=socket.IPPROTO_TCP)
 
     def start(self):
         services = []
         bound_handler = lambda *args, **kwargs: ACMEHTTPHandler(self, *args, **kwargs)
         for http_listen in self.listeners:
             http_service = ThreadedACMEServerByType[http_listen[0]](http_listen[4], bound_handler)
-            thread = Thread(target=http_service.serve_forever,
-                            daemon=True,
-                            name='http service to server validation request')
+            thread = Thread(
+                target=http_service.serve_forever,
+                daemon=True,
+                name='http service to server validation request',
+            )
             thread.start()
             services.append((http_service, thread))
         self.responses = {}
@@ -71,12 +74,12 @@ class HttpChallengeImplementor(ChallengeImplementor):
             return False
 
     def response_for(self, host, path):
-        ''' request a response for a given request
+        """request a response for a given request
 
         :param str host: Hostname of the request
         :param str path: Requested path (e.g. /.well-known/acme-challenges/?)
         :raises KeyError: Unknown host or path; return 404
-        '''
+        """
         content, event = self.responses[host][path]
         event.set()
         return content
@@ -84,6 +87,7 @@ class HttpChallengeImplementor(ChallengeImplementor):
 
 class DnsChallengeImplementor(ChallengeImplementor):
     """ WIP """
+
     def start(self):
         pass
 
@@ -125,6 +129,7 @@ class DnsChallengeServerImplementor(DnsChallengeImplementor):
 
     def start(self):
         import dnslib.server
+
         self.responses = {}
         for dns_listen in self.listeners:
             server = dnslib.server.DNSServer(self, port=dns_listen[4][1], address=dns_listen[4][0])
@@ -132,26 +137,38 @@ class DnsChallengeServerImplementor(DnsChallengeImplementor):
 
     def resolve(self, request, handler):
         import dnslib
+
         question = request.q
         lookup = (question.qname, question.qclass, question.qtype)
         reply = request.reply()
         if lookup in self.responses:
-            reply.add_answer(dnslib.RR(question.qname, question.qtype,
-                                       rdata=self.responses[lookup], ttl=5))
+            reply.add_answer(
+                dnslib.RR(question.qname, question.qtype, rdata=self.responses[lookup], ttl=5)
+            )
         elif question.qtype == dnslib.QTYPE.A:
-            reply.add_answer(dnslib.RR(question.qname, question.qtype,
-                                       rdata=dnslib.A(os.getenv('FAKE_DNS', '127.0.0.1')), ttl=5))
+            reply.add_answer(
+                dnslib.RR(
+                    question.qname,
+                    question.qtype,
+                    rdata=dnslib.A(os.getenv('FAKE_DNS', '127.0.0.1')),
+                    ttl=5,
+                )
+            )
         else:
             reply.header.rcode = dnslib.RCODE.NXDOMAIN
         return reply
 
     def add_entry(self, entry, value):
         import dnslib
-        self.responses[(dnslib.DNSLabel(entry), dnslib.CLASS.IN, dnslib.QTYPE.TXT)] = dnslib.TXT(value)
+
+        self.responses[(dnslib.DNSLabel(entry), dnslib.CLASS.IN, dnslib.QTYPE.TXT)] = dnslib.TXT(
+            value
+        )
 
 
 class DnsChallengeBoulderImplementor(DnsChallengeImplementor):
     """ WIP """
+
     def parse(self, options):
         self.set_txt_url = None
         for option, value in options:
@@ -161,10 +178,7 @@ class DnsChallengeBoulderImplementor(DnsChallengeImplementor):
             self.set_txt_url = 'http://localhost:8055/set-txt'
 
     def add_entry(self, entry, value):
-        task = json.dumps({
-            'host': entry,
-            'value': value
-        }).encode('utf-8')
+        task = json.dumps({'host': entry, 'value': value}).encode('utf-8')
 
         response = urllib.request.urlopen(self.set_txt_url, task)
         assert response.code is 200
@@ -172,6 +186,7 @@ class DnsChallengeBoulderImplementor(DnsChallengeImplementor):
 
 class DnsChallengeDnsUpdateImplementor(DnsChallengeImplementor):
     """ WIP """
+
     def parse(self, options):
         self.dns_servers = None
         self.ttl = None
@@ -186,8 +201,11 @@ class DnsChallengeDnsUpdateImplementor(DnsChallengeImplementor):
             elif option == 'timeout':
                 self.timeout = int(value)
             else:
-                warnings.warn('Option unknown [verification "{}"]{} = {}'.format(self.name, option, value),
-                              UnusedOptionWarning, stacklevel=2)
+                warnings.warn(
+                    'Option unknown [verification "{}"]{} = {}'.format(self.name, option, value),
+                    UnusedOptionWarning,
+                    stacklevel=2,
+                )
         if self.dns_servers is None:
             self.dns_servers = ['127.0.0.1']
         if self.ttl is None:
@@ -199,10 +217,12 @@ class DnsChallengeDnsUpdateImplementor(DnsChallengeImplementor):
         import dns
         import dns.update
         import dns.query
-        upd = dns.update.Update(self.select_zone(entry),
-                                #keyring=dns.tsigkeyring.from_text({keyname: key}),
-                                #keyalgorithm=algo)
-                                )
+
+        upd = dns.update.Update(
+            self.select_zone(entry),
+            # keyring=dns.tsigkeyring.from_text({keyname: key}),
+            # keyalgorithm=algo)
+        )
         upd.add(entry, self.ttl, 'TXT', value)
         try:
             response = dns.query.tcp(upd, self.dns_servers[0], timeout=self.timeout)

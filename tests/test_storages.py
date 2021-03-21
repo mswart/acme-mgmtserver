@@ -10,12 +10,13 @@ from .helpers import gencsrpem, signcsr
 
 ### file storage
 
+
 @pytest.fixture()
 def file_storage(tmpdir):
     return storages.setup('file', 'file', (('directory', str(tmpdir)),))
 
 
-class TestFileStorage():
+class TestFileStorage:
     def test_error_without_directory(self):
         with pytest.raises(config.ConfigurationError) as e:
             storages.setup('file', 'file', ())

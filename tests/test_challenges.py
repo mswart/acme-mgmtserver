@@ -8,6 +8,7 @@ from tests.helpers import MA, gencsrpem, randomize_domains
 
 ### domain verificateion
 
+
 def test_auto_domain_verification_by_dns(backend, dnsboulder_validator, ckey):
     m = backend.registered_manager(validator=dnsboulder_validator)
     domains = randomize_domains('www', 'mail', suffix='.example{}.com')
@@ -20,6 +21,7 @@ def test_auto_domain_verification_by_dns(backend, dnsboulder_validator, ckey):
 
 
 ### certificate creation
+
 
 def test_certificate_creation_by_dns(backend, dnsboulder_validator, ckey):
     domains = randomize_domains('www', 'mail', suffix='.example{}.org')

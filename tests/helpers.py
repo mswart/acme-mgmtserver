@@ -23,18 +23,26 @@ def M(configcontent, connect=False, validator=None):
 
 
 def MA(conf, connect=True, validator=None):
-    return M(conf + '''[auth "all"]
+    return M(
+        conf
+        + '''[auth "all"]
         all=yes
         domain=*
-        ''', connect=connect, validator=validator)
-
+        ''',
+        connect=connect,
+        validator=validator,
+    )
 
 
 def gencsrpem(domains, key):
     # Generates a CSR and returns a pyca/cryptography CSR object.
-    csr = x509.CertificateSigningRequestBuilder().subject_name(x509.Name([
-        x509.NameAttribute(NameOID.COMMON_NAME, domains[0]),
-    ]))
+    csr = x509.CertificateSigningRequestBuilder().subject_name(
+        x509.Name(
+            [
+                x509.NameAttribute(NameOID.COMMON_NAME, domains[0]),
+            ]
+        )
+    )
     csr = csr.add_extension(
         x509.SubjectAlternativeName([x509.DNSName(domain) for domain in domains]),
         critical=False,
@@ -56,28 +64,30 @@ def signcsr(csrpem, key, period, issued_before=None):
     builder = builder.public_key(csr.public_key())
     builder = builder.serial_number(int(uuid.uuid4()))
     builder = builder.add_extension(
-        x509.BasicConstraints(ca=False, path_length=None), critical=True,
+        x509.BasicConstraints(ca=False, path_length=None),
+        critical=True,
     )
     builder = builder.not_valid_before(datetime.now() - (issued_before or timedelta(1, 0, 0)))
     builder = builder.not_valid_after(datetime.now() + period)
-    cert = builder.sign(
-        private_key=key, algorithm=hashes.SHA256(),
-        backend=default_backend()
+    cert = builder.sign(private_key=key, algorithm=hashes.SHA256(), backend=default_backend())
+    return '\n'.join(
+        [
+            cert.public_bytes(pem_serialization.Encoding.PEM).decode('utf-8'),
+            cert.public_bytes(pem_serialization.Encoding.PEM).decode('utf-8'),
+        ]
     )
-    return '\n'.join([
-        cert.public_bytes(pem_serialization.Encoding.PEM).decode('utf-8'),
-        cert.public_bytes(pem_serialization.Encoding.PEM).decode('utf-8')
-    ])
 
 
 def extract_alt_names(obj):
     try:
-        extension = obj.to_cryptography().extensions \
-            .get_extension_for_oid(x509.ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
+        extension = obj.to_cryptography().extensions.get_extension_for_oid(
+            x509.ExtensionOID.SUBJECT_ALTERNATIVE_NAME
+        )
         return extension.value.get_values_for_type(x509.DNSName)
     except x509.extensions.ExtensionNotFound:
         return []
 
+
 def randomize_domains(*domains, suffix=''):
-    rand = random.randint(0, 2**16)
+    rand = random.randint(0, 2 ** 16)
     return [(domain + suffix).format(rand) for domain in domains]
