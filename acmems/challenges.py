@@ -1,16 +1,15 @@
 import os
 import socket
 from threading import Thread, Event
-from datetime import datetime, timedelta
 import json
 import urllib.request
 import warnings
+import functools
 
 import acme.client
 
 from acmems.config import ConfigurationError, UnusedOptionWarning
 from acmems.server import ThreadedACMEServerByType, ACMEHTTPHandler
-from acmems import exceptions
 
 
 class ChallengeImplementor:
@@ -42,7 +41,7 @@ class HttpChallengeImplementor(ChallengeImplementor):
 
     def start(self):
         services = []
-        bound_handler = lambda *args, **kwargs: ACMEHTTPHandler(self, *args, **kwargs)
+        bound_handler = functools.partial(ACMEHTTPHandler, self)
         for http_listen in self.listeners:
             http_service = ThreadedACMEServerByType[http_listen[0]](http_listen[4], bound_handler)
             thread = Thread(
@@ -181,7 +180,7 @@ class DnsChallengeBoulderImplementor(DnsChallengeImplementor):
         task = json.dumps({'host': entry, 'value': value}).encode('utf-8')
 
         response = urllib.request.urlopen(self.set_txt_url, task)
-        assert response.code is 200
+        assert response.code == 200
 
 
 class DnsChallengeDnsUpdateImplementor(DnsChallengeImplementor):

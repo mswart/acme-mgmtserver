@@ -13,6 +13,7 @@ import os.path
 import socket
 import warnings
 import re
+import sys
 
 from acmems.auth import Authenticator
 
@@ -206,9 +207,9 @@ class Configurator:
             if destination == 'syslog':
                 opts = {'handlers': [logging.handlers.SyslogHandler('/dev/log')]}
             elif destination == 'stdout':
-                opts = {'handlers': [systemd.handlers.StreamHandler(sys.stdout)]}
+                opts = {'handlers': [logging.handlers.StreamHandler(sys.stdout)]}
             elif destination == 'stderr':
-                opts = {'handlers': [systemd.handlers.StreamHandler(sys.stderr)]}
+                opts = {'handlers': [logging.handlers.StreamHandler(sys.stderr)]}
             elif destination == 'journalctl':
                 try:
                     import systemd.journal

@@ -16,7 +16,6 @@ import hmac
 import warnings
 
 from cryptography import x509
-import cryptography.exceptions
 from IPy import IP
 from OpenSSL import crypto
 
