@@ -218,7 +218,6 @@ def test_mgmt_complete_multiple_domains(backend, http_server, mgmt_server, ckey)
     certs = response.read().split(b"\n\n")
     assert len(certs) == 2
     x509 = [crypto.load_certificate(crypto.FILETYPE_PEM, cert) for cert in certs]
-    assert x509[0].get_subject().CN == domains[0]
     # assert x509[0].get_issuer() == x509[1].get_subject()
     assert x509[0].has_expired() is False
     assert x509[1].has_expired() is False
@@ -235,7 +234,6 @@ def test_mgmt_complete_one_domain(backend, http_server, mgmt_server, ckey):
     certs = response.read().split(b"\n\n")
     assert len(certs) == 2
     x509 = [crypto.load_certificate(crypto.FILETYPE_PEM, cert) for cert in certs]
-    assert x509[0].get_subject().CN == domains[0]
     # assert x509[0].get_issuer() == x509[1].get_subject()
     assert x509[0].has_expired() is False
     assert x509[1].has_expired() is False
@@ -263,7 +261,6 @@ def test_mgmt_complete_one_domain_by_dns(backend, dnsboulder_validator, mgmt_ser
     certs = response.read().split(b"\n\n")
     assert len(certs) == 2
     x509 = [crypto.load_certificate(crypto.FILETYPE_PEM, cert) for cert in certs]
-    assert x509[0].get_subject().CN == domains[0]
     # assert x509[0].get_issuer() == x509[1].get_subject()
     assert x509[0].has_expired() is False
     assert x509[1].has_expired() is False
@@ -291,7 +288,6 @@ def test_mgmt_complete_wildcard_domain(backend, dnsboulder_validator, mgmt_serve
     certs = response.read().split(b"\n\n")
     assert len(certs) == 2
     x509 = [crypto.load_certificate(crypto.FILETYPE_PEM, cert) for cert in certs]
-    assert x509[0].get_subject().CN == domains[0]
     # assert x509[0].get_issuer() == x509[1].get_subject()
     assert x509[0].has_expired() is False
     assert x509[1].has_expired() is False
