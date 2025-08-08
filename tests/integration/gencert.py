@@ -35,6 +35,9 @@ finally:
 subprocess.check_call(
     ["openssl", "x509", "-in", "tests/integration/work/domain-201512.pem", "-noout", "-text"]  # noqa: S607
 )
+subprocess.check_call(
+    ["openssl", "x509", "-in", "tests/integration/work/domain-201512-2.pem", "-noout", "-text"]  # noqa: S607
+)
 
 subprocess.check_call(
     [  # noqa: S607

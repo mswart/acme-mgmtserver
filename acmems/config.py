@@ -9,6 +9,7 @@ options are directly instanciated.
 
 import importlib
 import logging
+import logging.config
 import logging.handlers
 import os.path
 import re
@@ -203,11 +204,11 @@ class Configurator:
             logging.config.fileConfig(config_file)
         else:
             if destination == "syslog":
-                opts = {"handlers": [logging.handlers.SyslogHandler("/dev/log")]}
+                opts = {"handlers": [logging.handlers.SysLogHandler("/dev/log")]}
             elif destination == "stdout":
-                opts = {"handlers": [logging.handlers.StreamHandler(sys.stdout)]}
+                opts = {"handlers": [logging.StreamHandler(sys.stdout)]}
             elif destination == "stderr":
-                opts = {"handlers": [logging.handlers.StreamHandler(sys.stderr)]}
+                opts = {"handlers": [logging.StreamHandler(sys.stderr)]}
             elif destination == "journalctl":
                 try:
                     import systemd.journal
