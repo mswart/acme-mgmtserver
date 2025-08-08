@@ -169,12 +169,12 @@ Please have a look at the help output for further instructions `acme-register --
 A registration could look like this:
 
 ```bash
-> bin/acme-register --gen-key --register --email test@example.org configs/integration.ini
+> acme-register --gen-key --register --email test@example.org configs/integration.ini
 Generate private key ... done
 Initialize ACME client ... done
 Register ... done
 You need to accept the terms of service at http://127.0.0.1:4001/terms/v1
-> bin/acme-register --accept-terms-of-service=http://127.0.0.1:4001/terms/v1 configs/integration.ini
+> acme-register --accept-terms-of-service=http://127.0.0.1:4001/terms/v1 configs/integration.ini
 Load private key ... done
 Initialize ACME client ... done
 Refreshing current registration ... done

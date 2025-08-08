@@ -14,7 +14,7 @@ env['FAKE_DNS'] = subprocess.check_output("ip addr show docker0 | awk 'match($0,
 if sys.argv[1] == 'pebble':
     env['ACME_CAFILE'] = os.path.expanduser('~/build/letsencrypt/pebble/pebble.minica.pem')
 
-server = subprocess.Popen(['bin/acmems', 'configs/integration-{}.ini'.format(sys.argv[1])], env=env)
+server = subprocess.Popen(["acmems", "configs/integration-{}.ini".format(sys.argv[1])], env=env)
 time.sleep(2)
 
 try:

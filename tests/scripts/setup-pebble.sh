@@ -14,8 +14,6 @@ sed -i -e 's/ -strict//' -e '/environment:/a\      PEBBLE_WFE_NONCEREJECT: "0"' 
 
 docker-compose up -d
 
-pip install dnslib
-
 echo 'waiting for pebble to be functional ...'
 
 while true; do
