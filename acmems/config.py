@@ -1,11 +1,11 @@
-'''
-    This module contains mainly the `acmems.config.Configurator` class. It
-    parses configuration files. It valides all options are known and in the
-    correct format. It might raise a dedicated error or warning upon issues.
+"""
+This module contains mainly the `acmems.config.Configurator` class. It
+parses configuration files. It valides all options are known and in the
+correct format. It might raise a dedicated error or warning upon issues.
 
-    The parsed configuration is stored as instance variables and referenced
-    options are directly instanciated.
-'''
+The parsed configuration is stored as instance variables and referenced
+options are directly instanciated.
+"""
 
 import logging
 import importlib
@@ -41,7 +41,9 @@ class SingletonOptionRedifined(ConfigurationError):
         self.new = new
 
     def __str__(self):
-        return 'Singleton option redefined: {}.{} was {}, redefined as {}'.format(self.section, self.option, self.old, self.new)
+        return "Singleton option redefined: {}.{} was {}, redefined as {}".format(
+            self.section, self.option, self.old, self.new
+        )
 
 
 class ConfigurationWarning(UserWarning):
@@ -60,7 +62,7 @@ class UnusedSectionWarning(ConfigurationWarning):
     pass
 
 
-class Configurator():
+class Configurator:
     def __init__(self, *configs):
         self.validators = {}
         self.default_validator = None
@@ -74,11 +76,11 @@ class Configurator():
 
     @property
     def keyfile(self):
-        return os.path.join(self.account_dir, 'account.pem')
+        return os.path.join(self.account_dir, "account.pem")
 
     @property
     def registration_file(self):
-        return os.path.join(self.account_dir, 'registration.json')
+        return os.path.join(self.account_dir, "registration.json")
 
     @property
     def max_size(self):
@@ -86,25 +88,28 @@ class Configurator():
 
     def parse(self, config):
         config = self.read_data(config)
-        self.parse_setup_config(config.pop('setup', {}))
-        self.parse_logging_config(config.pop('logging', {}))
-        self.parse_account_config(config.pop('account'))
-        self.parser_mgmt_config(config.pop('mgmt'))
-        special_group_re = re.compile('^(?P<type>(auth|verification|storage)) (?P<opener>"?)(?P<name>.+)(?P=opener)$')
+        self.parse_setup_config(config.pop("setup", {}))
+        self.parse_logging_config(config.pop("logging", {}))
+        self.parse_account_config(config.pop("account"))
+        self.parser_mgmt_config(config.pop("mgmt"))
+        special_group_re = re.compile(
+            '^(?P<type>(auth|verification|storage)) (?P<opener>"?)(?P<name>.+)(?P=opener)$'
+        )
         auth_blocks = []
         for group, options in config.items():
             match = special_group_re.match(group)
             if match:
-                if match.group('type') == 'auth':
+                if match.group("type") == "auth":
                     # parse auth blocks last to have verification and storage blocks processed
-                    auth_blocks.append((match.group('name'), options))
-                elif match.group('type') == 'verification':
-                    self.parse_verification_group(match.group('name'), options)
+                    auth_blocks.append((match.group("name"), options))
+                elif match.group("type") == "verification":
+                    self.parse_verification_group(match.group("name"), options)
                 else:
-                    self.parse_storage_group(match.group('name'), options)
+                    self.parse_storage_group(match.group("name"), options)
             else:
-                warnings.warn('Unknown section name: {0}'.format(group),
-                              UnusedSectionWarning, stacklevel=2)
+                warnings.warn(
+                    "Unknown section name: {0}".format(group), UnusedSectionWarning, stacklevel=2
+                )
 
         self.setup_default_validator()
         self.setup_default_storage()
@@ -114,14 +119,14 @@ class Configurator():
 
     @staticmethod
     def read_data(config):
-        """ Reads the given file name. It assumes that the file has a INI file
-            syntax. The parser returns the data without comments and fill
-            characters. It supports multiple option with the same name per
-            section but not multiple sections with the same name.
+        """Reads the given file name. It assumes that the file has a INI file
+        syntax. The parser returns the data without comments and fill
+        characters. It supports multiple option with the same name per
+        section but not multiple sections with the same name.
 
-            :param str filename: path to INI file
-            :return: a dictionary - the key is the section name value, the
-                option is a array of (option name, option value) tuples"""
+        :param str filename: path to INI file
+        :return: a dictionary - the key is the section name value, the
+            option is a array of (option name, option value) tuples"""
         sections = {}
         with config as f:
             section = None
@@ -129,22 +134,25 @@ class Configurator():
             for line in f:
                 line = line.strip()
                 # ignore comments:
-                if line.startswith('#') or line.startswith(';'):
+                if line.startswith("#") or line.startswith(";"):
                     continue
                 if not line:
                     continue
                 # handle section header:
-                if line.startswith('[') and line.endswith(']'):
+                if line.startswith("[") and line.endswith("]"):
                     if section:  # save old section data
                         sections[section] = options
                     section = line[1:-1]
                     options = []
                     continue
                 if section is None:
-                    warnings.warn('Option without sections: {0}'.format(line),
-                                  UnusedOptionWarning, stacklevel=2)
+                    warnings.warn(
+                        "Option without sections: {0}".format(line),
+                        UnusedOptionWarning,
+                        stacklevel=2,
+                    )
                     continue
-                option, value = line.split('=', 1)
+                option, value = line.split("=", 1)
                 options.append((option.strip(), value.strip()))
             if section:  # save old section data
                 sections[section] = options
@@ -152,13 +160,16 @@ class Configurator():
 
     def parse_setup_config(self, config):
         for option, value in config:
-            if option == 'include-path':
+            if option == "include-path":
                 sys.argv.insert(value)
-            elif option == 'plugin':
+            elif option == "plugin":
                 importlib.import_module(value)
             else:
-                warnings.warn('Option unknown [{}]{} = {}'.format('setup', option, value),
-                              UnusedOptionWarning, stacklevel=2)
+                warnings.warn(
+                    "Option unknown [{}]{} = {}".format("setup", option, value),
+                    UnusedOptionWarning,
+                    stacklevel=2,
+                )
 
     def parse_logging_config(self, config):
         level = None
@@ -166,106 +177,118 @@ class Configurator():
         format = None
         config_file = None
         for option, value in config:
-            if option == 'level':
+            if option == "level":
                 level = value.upper()
-            elif option == 'destination':
+            elif option == "destination":
                 destination = value
-            elif option == 'format':
+            elif option == "format":
                 format = value
-            elif option == 'config-file':
+            elif option == "config-file":
                 config_file = value
             else:
-                warnings.warn('Option unknown [{}]{} = {}'.format('logging', option, value),
-                              UnusedOptionWarning, stacklevel=2)
+                warnings.warn(
+                    "Option unknown [{}]{} = {}".format("logging", option, value),
+                    UnusedOptionWarning,
+                    stacklevel=2,
+                )
         if config_file:
             if level or destination:
-                warnings.warn('logging: external config will be used - other logging settings like level and destination will be ignored',
-                    UnusedOptionWarning, stacklevel=2)
+                warnings.warn(
+                    "logging: external config will be used - other logging settings like level and destination will be ignored",
+                    UnusedOptionWarning,
+                    stacklevel=2,
+                )
             logging.config.fileConfig(config_file)
         else:
-            if destination == 'syslog':
-                opts = {'handlers': [logging.handlers.SyslogHandler('/dev/log')]}
-            elif destination == 'stdout':
-                opts = {'handlers': [systemd.handlers.StreamHandler(sys.stdout)]}
-            elif destination == 'stderr':
-                opts = {'handlers': [systemd.handlers.StreamHandler(sys.stderr)]}
-            elif destination == 'journalctl':
+            if destination == "syslog":
+                opts = {"handlers": [logging.handlers.SyslogHandler("/dev/log")]}
+            elif destination == "stdout":
+                opts = {"handlers": [systemd.handlers.StreamHandler(sys.stdout)]}
+            elif destination == "stderr":
+                opts = {"handlers": [systemd.handlers.StreamHandler(sys.stderr)]}
+            elif destination == "journalctl":
                 try:
                     import systemd.journal
                 except ImportError:
-                    raise ConfigurationError('systemd python module required to log to journalctl')
-                opts = {'handlers': [systemd.journal.JournalHandler()]}
+                    raise ConfigurationError("systemd python module required to log to journalctl")
+                opts = {"handlers": [systemd.journal.JournalHandler()]}
             elif destination:  # normal file:
-                opts = {'filename': destination}
+                opts = {"filename": destination}
             else:  # reuse loggings default destination (stderr)
                 opts = {}
             if format:
-                opts['format'] = format
-            logging.basicConfig(level=level or 'WARNING', **opts)
+                opts["format"] = format
+            logging.basicConfig(level=level or "WARNING", **opts)
 
     def parse_account_config(self, config):
         self.acme_server = None
         for option, value in config:
-            if option == 'acme-server':
+            if option == "acme-server":
                 if self.acme_server is not None:
                     raise SingletonOptionRedifined(
-                        section='account',
-                        option='acme_server',
-                        old=self.acme_server,
-                        new=value)
+                        section="account", option="acme_server", old=self.acme_server, new=value
+                    )
                 self.acme_server = value
-            elif option == 'dir':
+            elif option == "dir":
                 self.account_dir = value
             else:
-                warnings.warn('Option unknown [{}]{} = {}'.format('account', option, value),
-                              UnusedOptionWarning, stacklevel=2)
+                warnings.warn(
+                    "Option unknown [{}]{} = {}".format("account", option, value),
+                    UnusedOptionWarning,
+                    stacklevel=2,
+                )
         if self.acme_server is None:
-            self.acme_server = 'https://acme-staging.api.letsencrypt.org/directory'
+            self.acme_server = "https://acme-staging.api.letsencrypt.org/directory"
 
     def parser_mgmt_config(self, config):
         self.mgmt_listeners = None
         for option, value in config:
-            if option == 'max-size':
-                suffixes = {'k': 1024, 'm': 1024*1024}
+            if option == "max-size":
+                suffixes = {"k": 1024, "m": 1024 * 1024}
                 for suffix, mul in suffixes.items():
                     if value.endswith(suffix):
-                        self._max_size = int(value[:len(suffix)]) * mul
+                        self._max_size = int(value[: len(suffix)]) * mul
                         break
                 else:
                     self._max_size = int(value)
-            elif option == 'default-verification':
-                if value == '':
+            elif option == "default-verification":
+                if value == "":
                     self.default_validator = False
                 else:
                     self.default_validator = value.strip()
-            elif option == 'default-storage':
-                if value == '':
+            elif option == "default-storage":
+                if value == "":
                     self.default_storage = False
                 else:
                     self.default_storage = value.strip()
-            elif option == 'listener':
+            elif option == "listener":
                 if self.mgmt_listeners is None:
                     self.mgmt_listeners = []
-                if value == '':  # disable listener
+                if value == "":  # disable listener
                     continue
-                if ':' not in value:
-                    raise ConfigurationError('unix socket are currenlty not supported as listeners')
-                host, port = value.rsplit(':', 1)
-                if host[0] == '[' and host[-1] == ']':
+                if ":" not in value:
+                    raise ConfigurationError("unix socket are currenlty not supported as listeners")
+                host, port = value.rsplit(":", 1)
+                if host[0] == "[" and host[-1] == "]":
                     host = host[1:-1]
                 self.mgmt_listeners += socket.getaddrinfo(host, int(port), proto=socket.IPPROTO_TCP)
             else:
-                warnings.warn('Option unknown [{}]{} = {}'.format('listeners', option, value),
-                              UnusedOptionWarning, stacklevel=2)
+                warnings.warn(
+                    "Option unknown [{}]{} = {}".format("listeners", option, value),
+                    UnusedOptionWarning,
+                    stacklevel=2,
+                )
         if self.mgmt_listeners is None:
-            self.mgmt_listeners = socket.getaddrinfo('127.0.0.1', 1313, proto=socket.IPPROTO_TCP) \
-                + socket.getaddrinfo('::1', 1313, proto=socket.IPPROTO_TCP)
+            self.mgmt_listeners = socket.getaddrinfo(
+                "127.0.0.1", 1313, proto=socket.IPPROTO_TCP
+            ) + socket.getaddrinfo("::1", 1313, proto=socket.IPPROTO_TCP)
 
     def parse_verification_group(self, name, options):
         option, value = options.pop(0)
-        if option != 'type':
-            raise ConfigurationError('A verification must start with the type value!')
+        if option != "type":
+            raise ConfigurationError("A verification must start with the type value!")
         from acmems.challenges import setup
+
         self.validators[name] = setup(value, name, options)
 
     def setup_default_validator(self):
@@ -278,13 +301,15 @@ class Configurator():
             self.default_validator = list(self.validators.values())[0]
         else:  # define a default http storage
             from acmems.challenges import setup
-            self.default_validator = self.validators['http'] = setup('http01', 'http', ())
+
+            self.default_validator = self.validators["http"] = setup("http01", "http", ())
 
     def parse_storage_group(self, name, options):
         option, value = options.pop(0)
-        if option != 'type':
-            raise ConfigurationError('A storage must start with the type value!')
+        if option != "type":
+            raise ConfigurationError("A storage must start with the type value!")
         from acmems.storages import setup
+
         self.storages[name] = setup(value, name, options)
 
     def setup_default_storage(self):
@@ -296,4 +321,5 @@ class Configurator():
             self.default_storage = list(self.storages.values())[0]
         else:
             from acmems.storages import setup
-            self.default_storage = self.storages['none'] = setup('none', 'none', ())
+
+            self.default_storage = self.storages["none"] = setup("none", "none", ())
