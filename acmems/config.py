@@ -7,12 +7,14 @@ The parsed configuration is stored as instance variables and referenced
 options are directly instanciated.
 """
 
-import logging
 import importlib
+import logging
+import logging.handlers
 import os.path
-import socket
-import warnings
 import re
+import socket
+import sys
+import warnings
 
 from acmems.auth import Authenticator
 
@@ -134,7 +136,7 @@ class Configurator:
             for line in f:
                 line = line.strip()
                 # ignore comments:
-                if line.startswith("#") or line.startswith(";"):
+                if line.startswith(("#", ";")):
                     continue
                 if not line:
                     continue
@@ -161,7 +163,7 @@ class Configurator:
     def parse_setup_config(self, config):
         for option, value in config:
             if option == "include-path":
-                sys.argv.insert(value)
+                sys.argv.insert(0, value)
             elif option == "plugin":
                 importlib.import_module(value)
             else:
@@ -203,14 +205,16 @@ class Configurator:
             if destination == "syslog":
                 opts = {"handlers": [logging.handlers.SyslogHandler("/dev/log")]}
             elif destination == "stdout":
-                opts = {"handlers": [systemd.handlers.StreamHandler(sys.stdout)]}
+                opts = {"handlers": [logging.handlers.StreamHandler(sys.stdout)]}
             elif destination == "stderr":
-                opts = {"handlers": [systemd.handlers.StreamHandler(sys.stderr)]}
+                opts = {"handlers": [logging.handlers.StreamHandler(sys.stderr)]}
             elif destination == "journalctl":
                 try:
                     import systemd.journal
                 except ImportError:
-                    raise ConfigurationError("systemd python module required to log to journalctl")
+                    raise ConfigurationError(
+                        "systemd python module required to log to journalctl"
+                    ) from None
                 opts = {"handlers": [systemd.journal.JournalHandler()]}
             elif destination:  # normal file:
                 opts = {"filename": destination}
@@ -298,7 +302,7 @@ class Configurator:
             self.default_validator = self.validators[self.default_validator]
             return
         if len(self.validators) == 1:  # we use the only defined validator as default
-            self.default_validator = list(self.validators.values())[0]
+            self.default_validator = next(iter(self.validators.values()))
         else:  # define a default http storage
             from acmems.challenges import setup
 
@@ -318,7 +322,7 @@ class Configurator:
         if self.default_storage:
             self.default_storage = self.storages[self.default_storage]
         if len(self.storages) == 1:
-            self.default_storage = list(self.storages.values())[0]
+            self.default_storage = next(iter(self.storages.values()))
         else:
             from acmems.storages import setup
 

@@ -1,7 +1,14 @@
-import os.path
-import time
 from datetime import datetime, timedelta
 import logging
+import os.path
+import sys
+
+if sys.version_info >= (3, 11):
+    from datetime import UTC
+else:
+    from datetime import timezone
+
+    UTC: timezone = timezone.utc
 
 import acme.client
 import acme.messages
@@ -10,7 +17,6 @@ from cryptography.hazmat.primitives import serialization as pem_serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 import josepy.jwk
 import josepy.util
-
 
 from acmems import exceptions
 
@@ -65,7 +71,7 @@ class ACMEManager:
                     f.read(), password=None, backend=default_backend()
                 )
         except FileNotFoundError:
-            raise exceptions.AccountError("Key {} not found".format(self.config.keyfile))
+            raise exceptions.AccountError("Key {} not found".format(self.config.keyfile)) from None
         # TODO - handle IOError; keyfile without valid key
         self.key = josepy.jwk.JWKRSA(key=josepy.util.ComparableRSAKey(key))
 
@@ -111,23 +117,27 @@ class ACMEManager:
         directory = acme.messages.Directory.from_json(net.get(self.config.acme_server).json())
         self.client = acme.client.ClientV2(directory, net)
 
-    def register(self, emails=[], tos_agreement=None):
+    def register(self, emails=None, tos_agreement=None):
         resource = acme.messages.NewRegistration(
             key=self.key.public_key(),
-            contact=tuple(["mailto:{}".format(mail) for mail in emails]),
+            contact=tuple(["mailto:{}".format(mail) for mail in emails or []]),
             terms_of_service_agreed=bool(tos_agreement),
         )
         try:
             self.registration = self.client.new_account(resource)
         except acme.messages.Error as err:
             if err.typ == "urn:ietf:params:acme:error:agreementRequired":
-                raise exceptions.NeedToAgreeToTOS(self.client.directory.meta.terms_of_service)
+                raise exceptions.NeedToAgreeToTOS(
+                    self.client.directory.meta.terms_of_service
+                ) from None
             elif (
                 err.typ == "urn:ietf:params:acme:error:malformed"
                 and "must agree to terms of service" in err.detail
             ):
                 # fallback for boulder :-(
-                raise exceptions.NeedToAgreeToTOS(self.client.directory.meta.terms_of_service)
+                raise exceptions.NeedToAgreeToTOS(
+                    self.client.directory.meta.terms_of_service
+                ) from None
             raise
         self.dump_registration()
 
@@ -159,7 +169,9 @@ class ACMEManager:
             with open(self.config.registration_file, "r") as f:
                 self.registration = acme.messages.RegistrationResource.json_loads(f.read())
         except FileNotFoundError:
-            raise exceptions.AccountError("Key is not yet registered or registration is losted!")
+            raise exceptions.AccountError(
+                "Key is not yet registered or registration is losted!"
+            ) from None
         existing_regr = self.registration.json_dumps()
         self.client.net.account = self.registration
         self.registration = self.client.query_registration(self.registration)
@@ -192,10 +204,10 @@ class ACMEManager:
         except acme.messages.Error as e:
             logger.info("Request for a new order has been declined")
             if e.typ == "urn:ietf:params:acme:error:rejectedIdentifier":
-                raise exceptions.InvalidDomainName("unknown", e.detail)
+                raise exceptions.InvalidDomainName("unknown", e.detail) from None
             elif e.typ == "urn:ietf:params:acme:error:rateLimited":
                 logger.warning("New certificate rejected due to rate limiting")
-                raise exceptions.RateLimited(e.detail)
+                raise exceptions.RateLimited(e.detail) from None
             raise
         for authz in order.authorizations:
             domain = authz.body.identifier.value
@@ -207,20 +219,20 @@ class ACMEManager:
                 )
         logger.info("Awaiting for authorization to be validated")
         try:
-            return self.client.poll_authorizations(order, datetime.now() + timedelta(seconds=90))
+            return self.client.poll_authorizations(order, datetime.now() + timedelta(seconds=90))  # noqa: DTZ005 (acme expects offset-naive datetimes)
         except acme.errors.ValidationError:
             logger.error("Authorizations could not be validated!")
-            raise exceptions.ChallengeFailed()
+            raise exceptions.ChallengeFailed() from None
 
     def issue_certificate(self, order):
         # Request a certificate using the CSR and some number of domain validation challenges.
         logger.info("Requesting a certificate for order")
         try:
-            order = self.client.finalize_order(order, datetime.now() + timedelta(seconds=90))
+            order = self.client.finalize_order(order, datetime.now() + timedelta(seconds=90))  # noqa: DTZ005 (acme expects offset-naive datetimes)
         except acme.messages.Error as e:
             if e.typ == "urn:ietf:params:acme:error:rateLimited":
                 logger.warning("New certificate rejected due to rate limiting")
-                raise exceptions.RateLimited(e.detail)
+                raise exceptions.RateLimited(e.detail) from None
             logger.warning("Certificate issueing failed")
             raise  # unhandled
         logger.info("New certificate issued")

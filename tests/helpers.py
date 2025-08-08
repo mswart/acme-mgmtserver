@@ -1,14 +1,22 @@
-import io
 from datetime import datetime, timedelta
+import io
 import random
-
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import serialization as pem_serialization
-from cryptography import x509
-from cryptography.x509.oid import NameOID
-from cryptography.hazmat.primitives import hashes
-import OpenSSL
+import sys
 import uuid
+
+if sys.version_info >= (3, 11):
+    from datetime import UTC
+else:
+    from datetime import timezone
+
+    UTC: timezone = timezone.utc
+
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import serialization as pem_serialization
+from cryptography.x509.oid import NameOID
+import OpenSSL
 
 from acmems import config, manager
 
@@ -67,8 +75,8 @@ def signcsr(csrpem, key, period, issued_before=None):
         x509.BasicConstraints(ca=False, path_length=None),
         critical=True,
     )
-    builder = builder.not_valid_before(datetime.now() - (issued_before or timedelta(1, 0, 0)))
-    builder = builder.not_valid_after(datetime.now() + period)
+    builder = builder.not_valid_before(datetime.now(tz=UTC) - (issued_before or timedelta(1, 0, 0)))
+    builder = builder.not_valid_after(datetime.now(tz=UTC) + period)
     cert = builder.sign(private_key=key, algorithm=hashes.SHA256(), backend=default_backend())
     return "\n".join(
         [
@@ -89,5 +97,5 @@ def extract_alt_names(obj):
 
 
 def randomize_domains(*domains, suffix=""):
-    rand = random.randint(0, 2**16)
+    rand = random.randint(0, 2**16)  # noqa: S311
     return [(domain + suffix).format(rand) for domain in domains]

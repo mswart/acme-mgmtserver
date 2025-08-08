@@ -3,8 +3,7 @@ import socket
 
 import pytest
 
-from acmems import config
-from acmems import storages
+from acmems import config, storages
 
 
 def parse(configcontent):
@@ -72,7 +71,7 @@ def test_account_dir():
         dir = /tmp/test
         [mgmt]
         """)
-    assert config.account_dir == "/tmp/test"
+    assert config.account_dir == "/tmp/test"  # noqa: S108
 
 
 ### [account] unknown option
@@ -100,17 +99,17 @@ def test_simple_mgmt_listener():
         listener=127.0.0.1:13
         listener=[fe80::abba:abba%lo]:1380
         """)
-    assert len(config.mgmt_listeners) is 2
-    l = config.mgmt_listeners
-    assert l[0][0] is socket.AF_INET
-    assert l[0][4][0] == "127.0.0.1"
-    assert l[0][4][1] == 13
-    assert l[1][0] is socket.AF_INET6
+    assert len(config.mgmt_listeners) == 2
+    listeners = config.mgmt_listeners
+    assert listeners[0][0] is socket.AF_INET
+    assert listeners[0][4][0] == "127.0.0.1"
+    assert listeners[0][4][1] == 13
+    assert listeners[1][0] is socket.AF_INET6
     # Since Python 3.7, the interface name is removed as the interface number
     # is stored as fourth value in the tuple
-    assert l[1][4][0] in ["fe80::abba:abba%lo", "fe80::abba:abba"]
-    assert l[1][4][1] == 1380
-    assert l[1][4][3] == socket.if_nametoindex("lo")
+    assert listeners[1][4][0] in ["fe80::abba:abba%lo", "fe80::abba:abba"]
+    assert listeners[1][4][1] == 1380
+    assert listeners[1][4][3] == socket.if_nametoindex("lo")
 
 
 def test_default_mgmt_listener():
@@ -118,14 +117,14 @@ def test_default_mgmt_listener():
         [account]
         [mgmt]
         """)
-    assert len(config.mgmt_listeners) is 2
-    l = config.mgmt_listeners
-    assert l[0][0] is socket.AF_INET
-    assert l[0][4][0] == "127.0.0.1"
-    assert l[0][4][1] == 1313
-    assert l[1][0] is socket.AF_INET6
-    assert l[1][4][0] == "::1"
-    assert l[1][4][1] == 1313
+    assert len(config.mgmt_listeners) == 2
+    listeners = config.mgmt_listeners
+    assert listeners[0][0] is socket.AF_INET
+    assert listeners[0][4][0] == "127.0.0.1"
+    assert listeners[0][4][1] == 1313
+    assert listeners[1][0] is socket.AF_INET6
+    assert listeners[1][4][0] == "::1"
+    assert listeners[1][4][1] == 1313
 
 
 def test_disable_mgmt_listener():
@@ -134,7 +133,7 @@ def test_disable_mgmt_listener():
         [mgmt]
         listener=
         """)
-    assert len(config.mgmt_listeners) is 0
+    assert len(config.mgmt_listeners) == 0
 
 
 def test_unix_socket_as_mgmt_listener():
@@ -227,14 +226,14 @@ def test_simple_http_listener():
         listener=[::]:80
         """)
     assert tuple(config.validators.keys()) == ("http",)
-    assert len(config.validators["http"].listeners) is 2
-    l = config.validators["http"].listeners
-    assert l[0][0] is socket.AF_INET
-    assert l[0][4][0] == "127.0.0.1"
-    assert l[0][4][1] is 80
-    assert l[1][0] is socket.AF_INET6
-    assert l[1][4][0] == "::"
-    assert l[1][4][1] is 80
+    assert len(config.validators["http"].listeners) == 2
+    listeners = config.validators["http"].listeners
+    assert listeners[0][0] is socket.AF_INET
+    assert listeners[0][4][0] == "127.0.0.1"
+    assert listeners[0][4][1] == 80
+    assert listeners[1][0] is socket.AF_INET6
+    assert listeners[1][4][0] == "::"
+    assert listeners[1][4][1] == 80
 
 
 def test_unix_socket_as_http_listener():
@@ -265,8 +264,8 @@ def test_dns01_listener_default_options():
     assert tuple(config.validators.keys()) == ("dns",)
     v = config.validators["dns"]
     assert v.dns_servers == ["127.0.0.1"]
-    assert v.timeout is 5
-    assert v.ttl is 60
+    assert v.timeout == 5
+    assert v.ttl == 60
 
 
 def test_dns01_listener_with_explicit_options():
@@ -284,8 +283,8 @@ def test_dns01_listener_with_explicit_options():
     assert tuple(config.validators.keys()) == ("dns",)
     v = config.validators["dns"]
     assert v.dns_servers == ["127.0.0.2"]
-    assert v.timeout is 6
-    assert v.ttl is 61
+    assert v.timeout == 6
+    assert v.ttl == 61
 
 
 #### default verification
@@ -297,14 +296,14 @@ def test_default_http_listener():
         [mgmt]
         """)
     assert tuple(config.validators.keys()) == ("http",)
-    assert len(config.validators["http"].listeners) is 2
-    l = config.validators["http"].listeners
-    assert l[0][0] is socket.AF_INET
-    assert l[0][4][0] == "0.0.0.0"
-    assert l[0][4][1] == 1380
-    assert l[1][0] is socket.AF_INET6
-    assert l[1][4][0] == "::"
-    assert l[1][4][1] == 1380
+    assert len(config.validators["http"].listeners) == 2
+    listeners = config.validators["http"].listeners
+    assert listeners[0][0] is socket.AF_INET
+    assert listeners[0][4][0] == "0.0.0.0"  # noqa: S104
+    assert listeners[0][4][1] == 1380
+    assert listeners[1][0] is socket.AF_INET6
+    assert listeners[1][4][0] == "::"
+    assert listeners[1][4][1] == 1380
 
 
 def test_disable_http_listener():
@@ -339,7 +338,7 @@ def test_explict_none_storage():
         [storage "ntest"]
         type = none
         """)
-    assert set(config.storages) == set(("ntest",))
+    assert set(config.storages) == {"ntest"}
     assert type(config.storages["ntest"]) is storages.NoneStorageImplementor
 
 
@@ -363,7 +362,7 @@ def test_implicit_default_storage():
         acme-server = https://acme.example.org/directory
         [mgmt]
         """)
-    assert set(config.storages) == set(("none",))
+    assert set(config.storages) == {"none"}
 
 
 def test_use_single_stroage_as_default():

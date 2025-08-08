@@ -2,11 +2,9 @@ from datetime import timedelta
 
 import pytest
 
-from acmems import config
-from acmems import storages
+from acmems import config, storages
 
 from .helpers import gencsrpem, signcsr
-
 
 ### file storage
 

@@ -1,10 +1,10 @@
-import io
-import hmac
 import hashlib
+import hmac
+import io
 
 import pytest
 
-from acmems import auth, config, challenges, storages
+from acmems import auth, challenges, config, storages
 from tests.helpers import gencsrpem
 
 

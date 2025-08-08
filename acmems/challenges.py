@@ -1,16 +1,14 @@
+import json
 import os
 import socket
-from threading import Thread, Event
-from datetime import datetime, timedelta
-import json
+from threading import Event, Thread
 import urllib.request
 import warnings
 
 import acme.client
 
 from acmems.config import ConfigurationError, UnusedOptionWarning
-from acmems.server import ThreadedACMEServerByType, ACMEHTTPHandler
-from acmems import exceptions
+from acmems.server import ACMEHTTPHandler, ThreadedACMEServerByType
 
 
 class ChallengeImplementor:
@@ -37,12 +35,17 @@ class HttpChallengeImplementor(ChallengeImplementor):
                 self.listeners += socket.getaddrinfo(host, int(port), proto=socket.IPPROTO_TCP)
         if self.listeners is None:
             self.listeners = socket.getaddrinfo(
-                "0.0.0.0", 1380, proto=socket.IPPROTO_TCP
+                "0.0.0.0",  # noqa: S104
+                1380,
+                proto=socket.IPPROTO_TCP,
             ) + socket.getaddrinfo("::", 1380, proto=socket.IPPROTO_TCP)
 
     def start(self):
         services = []
-        bound_handler = lambda *args, **kwargs: ACMEHTTPHandler(self, *args, **kwargs)
+
+        def bound_handler(*args, **kwargs):
+            return ACMEHTTPHandler(self, *args, **kwargs)
+
         for http_listen in self.listeners:
             http_service = ThreadedACMEServerByType[http_listen[0]](http_listen[4], bound_handler)
             thread = Thread(
@@ -123,7 +126,7 @@ class DnsChallengeServerImplementor(DnsChallengeImplementor):
                     host = host[1:-1]
                 self.listeners += socket.getaddrinfo(host, int(port), proto=socket.IPPROTO_TCP)
         if self.listeners is None:
-            self.listeners = socket.getaddrinfo("0.0.0.0", 1353, proto=socket.IPPROTO_TCP)
+            self.listeners = socket.getaddrinfo("0.0.0.0", 1353, proto=socket.IPPROTO_TCP)  # noqa: S104
         if len(self.listeners) > 1:
             raise ConfigurationError("For now only one listener is supported!")
 
@@ -181,7 +184,7 @@ class DnsChallengeBoulderImplementor(DnsChallengeImplementor):
         task = json.dumps({"host": entry, "value": value}).encode("utf-8")
 
         response = urllib.request.urlopen(self.set_txt_url, task)
-        assert response.code is 200
+        assert response.code == 200
 
 
 class DnsChallengeDnsUpdateImplementor(DnsChallengeImplementor):
@@ -215,8 +218,8 @@ class DnsChallengeDnsUpdateImplementor(DnsChallengeImplementor):
 
     def add_entry(self, entry, value):
         import dns
-        import dns.update
         import dns.query
+        import dns.update
 
         upd = dns.update.Update(
             self.select_zone(entry),
@@ -232,7 +235,7 @@ class DnsChallengeDnsUpdateImplementor(DnsChallengeImplementor):
                 raise ValueError(rcode_text)
             return response
         except Exception as e:
-            raise ValueError("could not update {}: {}".format(e.__class__.__name__, e))
+            raise ValueError("could not update {}: {}".format(e.__class__.__name__, e)) from None
 
     def select_zone(self, entry):
         parts = entry.split(".")
@@ -251,4 +254,4 @@ def setup(type, name, options):
     try:
         return implementors[type](type, name, options)
     except KeyError:
-        raise ConfigurationError('Unsupported challenge type "{}"'.format(type))
+        raise ConfigurationError('Unsupported challenge type "{}"'.format(type)) from None

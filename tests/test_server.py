@@ -1,15 +1,15 @@
-import os
-import urllib.request
-import urllib.error
-import http.client
-import hmac
 import hashlib
+import hmac
+import http.client
+import os
+import urllib.error
+import urllib.request
 
-import pytest
 from OpenSSL import crypto
+import pytest
 
-from tests.helpers import M, MA, gencsrpem, extract_alt_names, randomize_domains
-from acmems import server, auth
+from acmems import server
+from tests.helpers import MA, M, extract_alt_names, gencsrpem, randomize_domains
 
 
 class BindingHTTPHandler(urllib.request.AbstractHTTPHandler):
@@ -314,7 +314,7 @@ def test_complete_rate_limit_on_certificate_creation(backend, http_server, mgmt_
     backend.registered_manager(validator=http_server)
     domains = randomize_domains("debug.fullexample{}.org")
     csr = gencsrpem(domains, ckey)
-    for i in range(5):
+    for _ in range(5):
         response = urllib.request.urlopen(
             "http://127.0.0.1:{}/sign".format(mgmt_server.server_port), csr
         )

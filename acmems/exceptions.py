@@ -9,13 +9,9 @@ class AcmeException(Exception):
     errors
     """
 
-    pass
-
 
 class NoChallengeMethodsSupported(AcmeException):
     """The domain can not be validated HTTP01"""
-
-    pass
 
 
 class ChallengeFailed(AcmeException):
@@ -25,16 +21,12 @@ class ChallengeFailed(AcmeException):
 class RateLimited(AcmeException):
     """To many requests"""
 
-    pass
-
 
 class AccountError(AcmeException):
     """Generic account error - e.g.
     - could not read private key
     - could not refresh the registration
     """
-
-    pass
 
 
 class NeedToAgreeToTOS(AccountError):
@@ -79,5 +71,3 @@ class PayloadToLarge(AcmeException):
 
 class PayloadInvalid(AcmeException):
     """The payload is not a valid CSR"""
-
-    pass

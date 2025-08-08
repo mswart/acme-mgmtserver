@@ -1,11 +1,7 @@
+import http.server
 import logging
-import sys
-import traceback
 import socket
 import socketserver
-import http.server
-
-import acme.errors
 
 from acmems import exceptions
 
@@ -59,12 +55,6 @@ class ACMEHTTPHandler(ACMEAbstractHandler):
 
     def do_GET(self):
         """Handles POST request (upload files)."""
-        extra = {
-            "client_ip": self.client_address,
-            "path": self.path,
-            "endpoint": "httpChallenges",
-            "host": self.headers.get("Host", "<unknown>"),
-        }
         host = self.headers["Host"]
         if host.endswith(":5002"):
             host = host[:-5]

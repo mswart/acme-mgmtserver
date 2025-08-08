@@ -1,14 +1,12 @@
-import os
-import shutil
 import random
+import shutil
 
-import pytest
 import acme
 import josepy.jwk
+import pytest
 
-from acmems import exceptions, server
-from tests.helpers import M, MA, gencsrpem, randomize_domains
-
+from acmems import exceptions
+from tests.helpers import M, gencsrpem, randomize_domains
 
 ### load private key
 
@@ -68,7 +66,7 @@ def test_override_key(tmpdir):
 
 ### register
 def randomized_email():
-    return "acme@pytest{}.org".format(random.randint(0, 2**16))
+    return "acme@pytest{}.org".format(random.randint(0, 2**16))  # noqa: S311
 
 
 def test_register_with_general_tos(backend, tmpdir):
@@ -109,7 +107,7 @@ def test_register_without_tos_agreement(backend, tmpdir):
     m.create_private_key()
     m.init_client()
     assert m.tos_agreement_required()
-    with pytest.raises(exceptions.NeedToAgreeToTOS) as e:
+    with pytest.raises(exceptions.NeedToAgreeToTOS):
         m.register(emails=[randomized_email()], tos_agreement=False)
 
 
@@ -123,7 +121,7 @@ def test_register_ignoring_tos_agreement(backend, tmpdir):
     m.create_private_key()
     m.init_client()
     assert m.tos_agreement_required()
-    with pytest.raises(exceptions.NeedToAgreeToTOS) as e:
+    with pytest.raises(exceptions.NeedToAgreeToTOS):
         m.register(emails=[randomized_email()], tos_agreement=None)
 
 
@@ -154,10 +152,10 @@ def test_auto_domain_verification(backend, http_server, ckey):
     domains = randomize_domains("www", "mail", suffix=".example{}.com")
     csr = gencsrpem(domains, ckey)
     orderr = m.acquire_domain_validations(http_server, csr)
-    assert len(orderr.authorizations) is 2
+    assert len(orderr.authorizations) == 2
     assert orderr.authorizations[0].body.status.name == "valid"
     assert orderr.authorizations[1].body.status.name == "valid"
-    assert sorted(map(lambda v: v.body.identifier.value, orderr.authorizations)) == sorted(domains)
+    assert sorted([v.body.identifier.value for v in orderr.authorizations]) == sorted(domains)
 
 
 def test_invalid_domain_verification(backend, http_server, ckey):
@@ -178,7 +176,7 @@ def test_certificate_creation(backend, http_server, ckey):
     csr = gencsrpem(domains, ckey)
     m = backend.registered_manager(validator=http_server)
     orderr = m.acquire_domain_validations(http_server, csr)
-    assert len(orderr.authorizations) is 2
+    assert len(orderr.authorizations) == 2
     certs = m.issue_certificate(orderr)
     assert len(certs.split("\n\n")) == 2
 
@@ -189,14 +187,14 @@ def test_rate_limit_on_certificate_creation(backend, http_server, ckey):
     domains = randomize_domains("httpexample-rate{}.org")
     csr = gencsrpem(domains, ckey)
     m = backend.registered_manager(validator=http_server)
-    for i in range(5):
+    for _ in range(5):
         orderr = m.acquire_domain_validations(http_server, csr)
-        assert len(orderr.authorizations) is 1
+        assert len(orderr.authorizations) == 1
         certs = m.issue_certificate(orderr)
         assert "-----BEGIN CERTIFICATE-----" in certs
         assert "-----END CERTIFICATE-----" in certs
     with pytest.raises(exceptions.RateLimited) as e:
         orderr = m.acquire_domain_validations(http_server, csr)
-        assert len(orderr.authorizations) is 1
+        assert len(orderr.authorizations) == 1
         m.issue_certificate(orderr)
     assert domains[0] in str(e.value)

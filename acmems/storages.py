@@ -1,7 +1,15 @@
+from datetime import datetime, timedelta
+from hashlib import sha384
 import os
 import os.path
-from hashlib import sha384
-from datetime import datetime, timedelta
+import sys
+
+if sys.version_info >= (3, 11):
+    from datetime import UTC
+else:
+    from datetime import timezone
+
+    UTC: timezone = timezone.utc
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -63,7 +71,7 @@ class FileStorageImplementor(StorageImplementor):
             return None
         certpem = open(os.path.join(dir, "cert.pem"), "rb").read()
         cert = x509.load_pem_x509_certificate(certpem, default_backend())
-        current_validation_time = cert.not_valid_after - datetime.now()
+        current_validation_time = cert.not_valid_after_utc - datetime.now(tz=UTC)
         if current_validation_time < self.renew_within:
             return None
         else:
@@ -89,4 +97,4 @@ def setup(type, name, options):
     try:
         return implementors[type](type, name, options)
     except KeyError:
-        raise ConfigurationError('Unsupported storage type "{}"'.format(type))
+        raise ConfigurationError('Unsupported storage type "{}"'.format(type)) from None

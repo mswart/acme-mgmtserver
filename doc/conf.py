@@ -9,8 +9,8 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys
 import os
+import sys
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -50,7 +50,7 @@ copyright = "2015⁻2018, Malte Swart"
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
-from acmems import version as acmems_version
+from acmems import version as acmems_version  # noqa: E402
 
 # The short X.Y version.
 version = "{}.{}".format(acmems_version.MAJOR, acmems_version.MINOR)

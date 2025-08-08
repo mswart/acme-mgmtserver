@@ -9,19 +9,17 @@ and invokes every referenced auchentication mothod to execute it
 authentication and autorisation itself.
 """
 
-import logging
 from fnmatch import fnmatch
 import hashlib
 import hmac
+import logging
 import warnings
 
 from cryptography import x509
-import cryptography.exceptions
 from IPy import IP
 from OpenSSL import crypto
 
 from acmems import exceptions
-
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +46,7 @@ class Authenticator:
 class IPAuthMethod:
     """Autentication by source IP"""
 
-    option_names = ["ip"]
+    option_names = ("ip",)
 
     def __init__(self, ips=None):
         self.ips = ips or []
@@ -71,7 +69,7 @@ class IPAuthMethod:
 class HmacAuthMethod:
     """Authentication by HMAC / secret key"""
 
-    option_names = ["hmac_type", "hmac_key"]
+    option_names = ("hmac_type", "hmac_key")
 
     def parse(self, option, value):
         if option == "hmac_type":
@@ -110,7 +108,7 @@ class HmacAuthMethod:
 class AllAuthMethod:
     """Allow all authentication"""
 
-    option_names = ["all"]
+    option_names = ("all",)
 
     def parse(self, option, value):
         assert option == "all"
@@ -170,7 +168,9 @@ class Block:
                 except KeyError:
                     from acmems.config import UnknownVerificationError
 
-                    raise UnknownVerificationError('Validator "{}" undefined'.format(value.strip()))
+                    raise UnknownVerificationError(
+                        'Validator "{}" undefined'.format(value.strip())
+                    ) from None
                 continue
             if option == "storage":
                 try:
@@ -178,7 +178,9 @@ class Block:
                 except KeyError:
                     from acmems.config import UnknownStorageError
 
-                    raise UnknownStorageError('Storage "{}" undefined'.format(value.strip()))
+                    raise UnknownStorageError(
+                        'Storage "{}" undefined'.format(value.strip())
+                    ) from None
                 continue
             for method in self.methods:
                 if option in method.option_names:
@@ -261,7 +263,7 @@ class Processor:
         try:
             self.read_and_parse_csr()
         except crypto.Error:
-            raise exceptions.PayloadInvalid()
+            raise exceptions.PayloadInvalid() from None
         self.accepted_block = None
         # 3. final check
         for block in possible_blocks:

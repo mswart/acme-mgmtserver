@@ -1,20 +1,14 @@
 import json
 import os
-from urllib.request import urlopen
 from threading import Thread
-import sys
+from urllib.request import urlopen
 
-import pytest
-from cryptography.hazmat.primitives.asymmetric import rsa, ec
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric import ec, rsa
+import pytest
 
-
-parent = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if os.path.isdir(os.path.join(parent, "acmems")):
-    sys.path.insert(0, parent)
-
-from tests.helpers import M, MA
-from acmems import server, challenges
+from acmems import challenges, server
+from tests.helpers import MA, M
 
 
 class ACMEBackend:

@@ -18,7 +18,7 @@ while true; do
   sleep 1
   if [[ "$SECONDS" -gt 300 ]]; then
     echo 'setup took more than 5 minutes, give up  :-('
-    docker-compose logs
+    docker compose logs
     exit 3
   fi
 done
