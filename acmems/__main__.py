@@ -8,7 +8,7 @@ from .manager import ACMEManager
 from .server import ACMEAbstractHandler, ACMEMgmtHandler, ThreadedACMEServerByType
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Basic Python Server to execute ACME instead of dump clients"
     )
@@ -36,8 +36,8 @@ def main():
     for validator in config.validators.values():
         validator.start()
 
-    mgmt_services = []
-    mgmt_threads = []
+    mgmt_services: list[Thread] = []
+    mgmt_threads: list[Thread] = []
 
     for mgmt_listen in config.mgmt_listeners:
         mgmt_service = ThreadedACMEServerByType[mgmt_listen[0]](mgmt_listen[4], ACMEMgmtHandler)

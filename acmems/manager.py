@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 import logging
 import os.path
 import sys
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 if sys.version_info >= (3, 11):
     from datetime import UTC
@@ -11,6 +12,7 @@ else:
     UTC: timezone = timezone.utc
 
 import acme.client
+import acme.errors
 import acme.messages
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization as pem_serialization
@@ -19,6 +21,10 @@ import josepy.jwk
 import josepy.util
 
 from acmems import exceptions
+from acmems.config import Configurator
+
+if TYPE_CHECKING:
+    from acmems.challenges import ChallengeImplementor
 
 logger = logging.getLogger(__name__)
 
@@ -34,11 +40,10 @@ class ACMEManager:
 
     """
 
-    def __init__(self, config, connect=True):
-        self.responses = {}
-        self.authzrs = {}
+    def __init__(self, config: Configurator, connect: bool = True) -> None:
+        self.responses: dict[str, dict[str, Any]] = {}
+        self.authzrs: dict[str, acme.messages.AuthorizationResource] = {}
         self.config = config
-        self.directory = None
         if connect:
             self.connect()
 
@@ -46,7 +51,7 @@ class ACMEManager:
     # 1. generall ACME account handling (keys, registration ...)
     # ----------------------------------------------------------
 
-    def connect(self):
+    def connect(self) -> None:
         """initialize/setup ourself; load private key, create ACME client
         and refresh our registration
 
@@ -58,7 +63,7 @@ class ACMEManager:
         self.init_client()
         self.refresh_registration()
 
-    def load_private_key(self):
+    def load_private_key(self) -> None:
         """load our private key / the key to identify ourself against
         the ACME server. This key MUST NOT be used for certificates.
 
@@ -75,7 +80,7 @@ class ACMEManager:
         # TODO - handle IOError; keyfile without valid key
         self.key = josepy.jwk.JWKRSA(key=josepy.util.ComparableRSAKey(key))
 
-    def create_private_key(self, force=False, key_size=4096):
+    def create_private_key(self, force: bool = False, key_size: int = 4096) -> None:
         """create new private key to be used for identify ourself against
         the ACME server
 
@@ -103,21 +108,23 @@ class ACMEManager:
         # verify that everythings works by reading the key from disk
         self.load_private_key()
 
-    def load_directory(self):
-        self.directory = acme.messages.Directory.from_json(
+    @property
+    def directory(self) -> acme.messages.Directory:
+        return acme.messages.Directory.from_json(
             acme.client.ClientNetwork(None, verify_ssl=os.getenv("ACME_CAFILE", True))
             .get(self.config.acme_server)
             .json()
         )
 
-    def init_client(self):
+    def init_client(self) -> None:
         """create ACME client"""
-        self.directory or self.load_directory()
         net = acme.client.ClientNetwork(self.key, verify_ssl=os.getenv("ACME_CAFILE", True))
         directory = acme.messages.Directory.from_json(net.get(self.config.acme_server).json())
         self.client = acme.client.ClientV2(directory, net)
 
-    def register(self, emails=None, tos_agreement=None):
+    def register(
+        self, emails: list[str] | None = None, tos_agreement: str | Literal[True] | None = None
+    ) -> None:
         resource = acme.messages.NewRegistration(
             key=self.key.public_key(),
             contact=tuple(["mailto:{}".format(mail) for mail in emails or []]),
@@ -141,25 +148,24 @@ class ACMEManager:
             raise
         self.dump_registration()
 
-    def tos_agreement_required(self):
-        self.directory or self.load_directory()
+    def tos_agreement_required(self) -> None | Literal[False] | str:
         if "terms_of_service" not in self.directory.meta:
             return None
         if not hasattr(self, "registration"):
-            return self.directory.meta.terms_of_service
+            return cast(str, self.directory.meta.terms_of_service)
         return False
 
-    def accept_terms_of_service(self, url):
+    def accept_terms_of_service(self, url: str) -> None:
         assert url is not False
         self.registration.body.update(terms_of_service_agreed=True)
         self.dump_registration()
 
-    def dump_registration(self):
+    def dump_registration(self) -> None:
         with open(self.config.registration_file, "w") as f:
             f.write(self.registration.json_dumps_pretty())
         self.client.net.account = self.registration
 
-    def refresh_registration(self):
+    def refresh_registration(self) -> None:
         # return
         # Register or validate and update our registration.
         existing_regr = None
@@ -180,14 +186,16 @@ class ACMEManager:
             self.dump_registration()
 
         # the terms of server needs to be agreed to use the ACME server!
-        if self.tos_agreement_required():
-            raise exceptions.NeedToAgreeToTOS(self.tos_agreement_required)
+        if tos := self.tos_agreement_required():
+            raise exceptions.NeedToAgreeToTOS(tos)
 
     # ---------------------------------------------------------
     # 2. the real part (handling authorizations + certificates)
     # ---------------------------------------------------------
 
-    def acquire_domain_validations(self, validator, csrpem):
+    def acquire_domain_validations(
+        self, validator: "ChallengeImplementor", csrpem: bytes
+    ) -> acme.messages.OrderResource:
         """requests for all given domains domain validations
         If we have cached a valid challenge return this.
         Expired challenges will clear automatically; invalided challenges
@@ -209,7 +217,7 @@ class ACMEManager:
                 logger.warning("New certificate rejected due to rate limiting")
                 raise exceptions.RateLimited(e.detail) from None
             raise
-        for authz in order.authorizations:
+        for authz in cast(tuple[acme.messages.AuthorizationResource, ...], order.authorizations):
             domain = authz.body.identifier.value
             logger.info("processing authorization for %s", domain)
             if not validator.new_authorization(authz.body, self.client, self.key, domain):
@@ -224,7 +232,7 @@ class ACMEManager:
             logger.error("Authorizations could not be validated!")
             raise exceptions.ChallengeFailed() from None
 
-    def issue_certificate(self, order):
+    def issue_certificate(self, order: acme.messages.OrderResource) -> str:
         # Request a certificate using the CSR and some number of domain validation challenges.
         logger.info("Requesting a certificate for order")
         try:

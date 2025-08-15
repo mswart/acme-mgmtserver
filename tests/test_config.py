@@ -6,14 +6,14 @@ import pytest
 from acmems import config, storages
 
 
-def parse(configcontent):
+def parse(configcontent: str) -> config.Configurator:
     return config.Configurator(io.StringIO(configcontent))
 
 
 ### generall
 
 
-def test_error_on_option_without_section():
+def test_error_on_option_without_section() -> None:
     with pytest.warns(config.UnusedOptionWarning) as w:
         parse("""
             acme-server = https://acme.example.org/directory
@@ -24,7 +24,7 @@ def test_error_on_option_without_section():
     assert "https://acme.example.org/directory" in str(w[-1].message)
 
 
-def test_comment():
+def test_comment() -> None:
     parse("""
         [account]
         #acme-server https://acme.example.org/directory
@@ -35,7 +35,7 @@ def test_comment():
 ### [account] acme-server
 
 
-def test_acme_server_address():
+def test_acme_server_address() -> None:
     c = parse("""
 [account]
 acme-server = https://acme.example.org/directory
@@ -44,13 +44,13 @@ acme-server = https://acme.example.org/directory
     assert c.acme_server == "https://acme.example.org/directory"
 
 
-def test_default_acme_server_address():
+def test_default_acme_server_address() -> None:
     c = parse("""[account]
         [mgmt]""")
     assert c.acme_server == "https://acme-staging.api.letsencrypt.org/directory"
 
 
-def test_error_on_multiple_acme_server_addresses():
+def test_error_on_multiple_acme_server_addresses() -> None:
     with pytest.raises(config.SingletonOptionRedifined) as e:
         parse("""
             [account]
@@ -65,7 +65,7 @@ def test_error_on_multiple_acme_server_addresses():
 ### [account] dir
 
 
-def test_account_dir():
+def test_account_dir() -> None:
     config = parse("""
         [account]
         dir = /tmp/test
@@ -77,7 +77,7 @@ def test_account_dir():
 ### [account] unknown option
 
 
-def test_warning_on_unknown_account_option():
+def test_warning_on_unknown_account_option() -> None:
     with pytest.warns(config.UnusedOptionWarning) as w:
         parse("""
             [account]
@@ -91,7 +91,7 @@ def test_warning_on_unknown_account_option():
 ### [mgmt] mgmt
 
 
-def test_simple_mgmt_listener():
+def test_simple_mgmt_listener() -> None:
     config = parse("""
         [account]
         acme-server = https://acme.example.org/directory
@@ -109,10 +109,10 @@ def test_simple_mgmt_listener():
     # is stored as fourth value in the tuple
     assert listeners[1][4][0] in ["fe80::abba:abba%lo", "fe80::abba:abba"]
     assert listeners[1][4][1] == 1380
-    assert listeners[1][4][3] == socket.if_nametoindex("lo")
+    assert listeners[1][4][3] == socket.if_nametoindex("lo")  # pyright: ignore[reportGeneralTypeIssues] (we parse a link local address and have more fields)
 
 
-def test_default_mgmt_listener():
+def test_default_mgmt_listener() -> None:
     config = parse("""
         [account]
         [mgmt]
@@ -127,7 +127,7 @@ def test_default_mgmt_listener():
     assert listeners[1][4][1] == 1313
 
 
-def test_disable_mgmt_listener():
+def test_disable_mgmt_listener() -> None:
     config = parse("""
         [account]
         [mgmt]
@@ -136,7 +136,7 @@ def test_disable_mgmt_listener():
     assert len(config.mgmt_listeners) == 0
 
 
-def test_unix_socket_as_mgmt_listener():
+def test_unix_socket_as_mgmt_listener() -> None:
     with pytest.raises(config.ConfigurationError) as e:
         parse("""
             [account]
@@ -149,7 +149,7 @@ def test_unix_socket_as_mgmt_listener():
 ### [mgmt] max size
 
 
-def test_default_max_size_options():
+def test_default_max_size_options() -> None:
     p = parse("""
         [account]
         [mgmt]
@@ -157,7 +157,7 @@ def test_default_max_size_options():
     assert p.max_size == 4096
 
 
-def test_max_size_options_in_bytes():
+def test_max_size_options_in_bytes() -> None:
     p = parse("""
         [account]
         [mgmt]
@@ -166,7 +166,7 @@ def test_max_size_options_in_bytes():
     assert p.max_size == 2394
 
 
-def test_max_size_options_in_kbytes():
+def test_max_size_options_in_kbytes() -> None:
     p = parse("""
         [account]
         [mgmt]
@@ -175,7 +175,7 @@ def test_max_size_options_in_kbytes():
     assert p.max_size == 4096
 
 
-def test_max_size_options_in_mbytes():
+def test_max_size_options_in_mbytes() -> None:
     p = parse("""
         [account]
         [mgmt]
@@ -187,7 +187,7 @@ def test_max_size_options_in_mbytes():
 ### [mgmt] unknown option
 
 
-def test_warning_on_unknown_mgmt_option():
+def test_warning_on_unknown_mgmt_option() -> None:
     with pytest.warns(config.UnusedOptionWarning) as w:
         parse("""
             [account]
@@ -201,7 +201,7 @@ def test_warning_on_unknown_mgmt_option():
 ### unknown section
 
 
-def test_warning_on_unknown_section():
+def test_warning_on_unknown_section() -> None:
     with pytest.warns(config.UnusedSectionWarning) as w:
         parse("""
             [account]
@@ -214,7 +214,7 @@ def test_warning_on_unknown_section():
 ### http verification
 
 
-def test_simple_http_listener():
+def test_simple_http_listener() -> None:
     config = parse("""
         [account]
         acme-server = https://acme.example.org/directory
@@ -236,7 +236,7 @@ def test_simple_http_listener():
     assert listeners[1][4][1] == 80
 
 
-def test_unix_socket_as_http_listener():
+def test_unix_socket_as_http_listener() -> None:
     with pytest.raises(config.ConfigurationError) as e:
         parse("""
             [account]
@@ -252,7 +252,7 @@ def test_unix_socket_as_http_listener():
 ### dns verification
 
 
-def test_dns01_listener_default_options():
+def test_dns01_listener_default_options() -> None:
     config = parse("""
         [account]
         acme-server = https://acme.example.org/directory
@@ -268,7 +268,7 @@ def test_dns01_listener_default_options():
     assert v.ttl == 60
 
 
-def test_dns01_listener_with_explicit_options():
+def test_dns01_listener_with_explicit_options() -> None:
     config = parse("""
         [account]
         acme-server = https://acme.example.org/directory
@@ -290,7 +290,7 @@ def test_dns01_listener_with_explicit_options():
 #### default verification
 
 
-def test_default_http_listener():
+def test_default_http_listener() -> None:
     config = parse("""
         [account]
         [mgmt]
@@ -306,16 +306,16 @@ def test_default_http_listener():
     assert listeners[1][4][1] == 1380
 
 
-def test_disable_http_listener():
+def test_disable_http_listener() -> None:
     config = parse("""
         [account]
         [mgmt]
         default-verification=
         """)
-    assert config.default_validator is False
+    assert config.default_validator is None
 
 
-def test_use_single_verification_as_default():
+def test_use_single_verification_as_default() -> None:
     config = parse("""
         [account]
         [mgmt]
@@ -329,7 +329,7 @@ def test_use_single_verification_as_default():
 ### storages
 
 
-def test_explict_none_storage():
+def test_explict_none_storage() -> None:
     config = parse("""
         [account]
         acme-server = https://acme.example.org/directory
@@ -342,7 +342,7 @@ def test_explict_none_storage():
     assert type(config.storages["ntest"]) is storages.NoneStorageImplementor
 
 
-def test_not_other_none_storage_options():
+def test_not_other_none_storage_options() -> None:
     with pytest.raises(config.ConfigurationError) as e:
         parse("""
             [account]
@@ -356,7 +356,7 @@ def test_not_other_none_storage_options():
     assert "other" in str(e.value)
 
 
-def test_implicit_default_storage():
+def test_implicit_default_storage() -> None:
     config = parse("""
         [account]
         acme-server = https://acme.example.org/directory
@@ -365,7 +365,7 @@ def test_implicit_default_storage():
     assert set(config.storages) == {"none"}
 
 
-def test_use_single_stroage_as_default():
+def test_use_single_stroage_as_default() -> None:
     config = parse("""
         [account]
         [mgmt]

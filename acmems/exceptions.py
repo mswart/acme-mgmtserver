@@ -34,7 +34,7 @@ class NeedToAgreeToTOS(AccountError):
     we need to accept the "Terms of Service"
     """
 
-    def __init__(self, url):
+    def __init__(self, url: str) -> None:
         self.url = url
 
 
@@ -45,16 +45,12 @@ class InvalidDomainName(AcmeException):
     :ivar str detail: the reject reason as string
     """
 
-    def __init__(self, domain, detail):
+    def __init__(self, domain: str, detail: str) -> None:
         self.domain = domain
         self.detail = detail
 
-    def __str__(self):
-        return (
-            "{} is not a domain name that the ACME server can issue a certificate for: {}".format(
-                self.domain, self.detail
-            )
-        )
+    def __str__(self) -> str:
+        return f"{self.domain} is not a domain name that the ACME server can issue a certificate for: {self.detail}"
 
 
 class PayloadToLarge(AcmeException):
@@ -64,7 +60,7 @@ class PayloadToLarge(AcmeException):
     :ivar int allowed: the maximal size in bytes
     """
 
-    def __init__(self, size, allowed):
+    def __init__(self, size: int, allowed: int) -> None:
         self.size = size
         self.allowed = allowed
 

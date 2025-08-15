@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 import io
 import random
 import sys
+from typing import Sequence
 import uuid
 
 if sys.version_info >= (3, 11):
@@ -15,13 +16,17 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization as pem_serialization
-from cryptography.x509.oid import NameOID
+from cryptography.hazmat.primitives.asymmetric.types import CertificateIssuerPrivateKeyTypes
+from cryptography.x509.oid import ExtensionOID, NameOID
 import OpenSSL
 
 from acmems import config, manager
+from acmems.challenges import ChallengeImplementor
 
 
-def M(configcontent, connect=False, validator=None):
+def M(
+    configcontent: str, *, connect: bool = False, validator: ChallengeImplementor | None = None
+) -> manager.ACMEManager:
     c = config.Configurator(io.StringIO(configcontent))
     if validator:
         c.default_validator = validator
@@ -30,7 +35,9 @@ def M(configcontent, connect=False, validator=None):
     return manager.ACMEManager(c, connect=connect)
 
 
-def MA(conf, connect=True, validator=None):
+def MA(
+    conf: str, connect: bool = True, validator: ChallengeImplementor | None = None
+) -> manager.ACMEManager:
     return M(
         conf
         + """[auth "all"]
@@ -42,7 +49,7 @@ def MA(conf, connect=True, validator=None):
     )
 
 
-def gencsrpem(domains, key):
+def gencsrpem(domains: Sequence[str], key: CertificateIssuerPrivateKeyTypes) -> bytes:
     # Generates a CSR and returns a pyca/cryptography CSR object.
     csr = x509.CertificateSigningRequestBuilder().subject_name(
         x509.Name(
@@ -59,12 +66,17 @@ def gencsrpem(domains, key):
     return csr.public_bytes(pem_serialization.Encoding.PEM)
 
 
-def gencsr(domains, key):
+def gencsr(domains: Sequence[str], key: CertificateIssuerPrivateKeyTypes) -> OpenSSL.crypto.X509Req:  # pyright: ignore[reportDeprecated]
     pem = gencsrpem(domains, key)
     return OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_PEM, pem)
 
 
-def signcsr(csrpem, key, period, issued_before=None):
+def signcsr(
+    csrpem: bytes,
+    key: CertificateIssuerPrivateKeyTypes,
+    period: timedelta,
+    issued_before: timedelta | None = None,
+) -> str:
     csr = x509.load_pem_x509_csr(csrpem, default_backend())
     builder = x509.CertificateBuilder()
     builder = builder.subject_name(csr.subject)
@@ -86,16 +98,16 @@ def signcsr(csrpem, key, period, issued_before=None):
     )
 
 
-def extract_alt_names(obj):
+def extract_alt_names(obj: OpenSSL.crypto.X509Req) -> list[str]:  # pyright: ignore[reportDeprecated]
     try:
         extension = obj.to_cryptography().extensions.get_extension_for_oid(
-            x509.ExtensionOID.SUBJECT_ALTERNATIVE_NAME
+            ExtensionOID.SUBJECT_ALTERNATIVE_NAME
         )
         return extension.value.get_values_for_type(x509.DNSName)
-    except x509.extensions.ExtensionNotFound:
+    except x509.ExtensionNotFound:
         return []
 
 
-def randomize_domains(*domains, suffix=""):
+def randomize_domains(*domains: str, suffix: str = "") -> list[str]:
     rand = random.randint(0, 2**16)  # noqa: S311
     return [(domain + suffix).format(rand) for domain in domains]
