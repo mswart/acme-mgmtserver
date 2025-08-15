@@ -47,7 +47,7 @@ wheels = [
 
 [[package]]
 name = "acme-mgmtserver"
-version = "0.4.1"
+version = "0.5.0a1"
 source = { editable = "." }
 dependencies = [
     { name = "acme", version = "4.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9.2'" },

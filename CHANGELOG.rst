@@ -7,6 +7,16 @@ This page lists all versions with its changes. ACMEMS follows Semantic Versionin
 Version 0
 -------------------------
 
+v0.5.0 (unreleased)
+^^^^^^^^^^^^^^^^^^^
+
+Modernize project
+
+* Switch to pyproject.toml (instead of setup.py); use scripts instead of custom binaries
+* Auto-format code
+* Configure linter and fix diagnostics
+* Refresh supported Python versions (now 3.9 to 3.13)
+
 
 v0.4.1
 ^^^^^^
