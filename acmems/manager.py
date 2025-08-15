@@ -2,6 +2,9 @@ from datetime import datetime, timedelta
 import logging
 import os.path
 import sys
+from typing import Any
+
+from acmems.challenges import ChallengeImplementor
 
 if sys.version_info >= (3, 11):
     from datetime import UTC
@@ -19,6 +22,7 @@ import josepy.jwk
 import josepy.util
 
 from acmems import exceptions
+from acmems.config import Configurator
 
 logger = logging.getLogger(__name__)
 
@@ -34,11 +38,10 @@ class ACMEManager:
 
     """
 
-    def __init__(self, config, connect=True):
-        self.responses = {}
-        self.authzrs = {}
+    def __init__(self, config: Configurator, connect: bool = True):
+        self.responses: dict[str, dict[str, Any]] = {}
+        self.authzrs: dict[str, acme.messages.AuthorizationResource] = {}
         self.config = config
-        self.directory = None
         if connect:
             self.connect()
 
@@ -75,7 +78,7 @@ class ACMEManager:
         # TODO - handle IOError; keyfile without valid key
         self.key = josepy.jwk.JWKRSA(key=josepy.util.ComparableRSAKey(key))
 
-    def create_private_key(self, force=False, key_size=4096):
+    def create_private_key(self, force: bool = False, key_size: int = 4096):
         """create new private key to be used for identify ourself against
         the ACME server
 
@@ -103,8 +106,9 @@ class ACMEManager:
         # verify that everythings works by reading the key from disk
         self.load_private_key()
 
-    def load_directory(self):
-        self.directory = acme.messages.Directory.from_json(
+    @property
+    def directory(self) -> acme.messages.Directory:
+        return acme.messages.Directory.from_json(
             acme.client.ClientNetwork(None, verify_ssl=os.getenv("ACME_CAFILE", True))
             .get(self.config.acme_server)
             .json()
@@ -112,12 +116,11 @@ class ACMEManager:
 
     def init_client(self):
         """create ACME client"""
-        self.directory or self.load_directory()
         net = acme.client.ClientNetwork(self.key, verify_ssl=os.getenv("ACME_CAFILE", True))
         directory = acme.messages.Directory.from_json(net.get(self.config.acme_server).json())
         self.client = acme.client.ClientV2(directory, net)
 
-    def register(self, emails=None, tos_agreement=None):
+    def register(self, emails: list[str] | None = None, tos_agreement: str | None = None):
         resource = acme.messages.NewRegistration(
             key=self.key.public_key(),
             contact=tuple(["mailto:{}".format(mail) for mail in emails or []]),
@@ -142,14 +145,13 @@ class ACMEManager:
         self.dump_registration()
 
     def tos_agreement_required(self):
-        self.directory or self.load_directory()
         if "terms_of_service" not in self.directory.meta:
             return None
         if not hasattr(self, "registration"):
             return self.directory.meta.terms_of_service
         return False
 
-    def accept_terms_of_service(self, url):
+    def accept_terms_of_service(self, url: str):
         assert url is not False
         self.registration.body.update(terms_of_service_agreed=True)
         self.dump_registration()
@@ -187,7 +189,7 @@ class ACMEManager:
     # 2. the real part (handling authorizations + certificates)
     # ---------------------------------------------------------
 
-    def acquire_domain_validations(self, validator, csrpem):
+    def acquire_domain_validations(self, validator: ChallengeImplementor, csrpem: bytes):
         """requests for all given domains domain validations
         If we have cached a valid challenge return this.
         Expired challenges will clear automatically; invalided challenges
