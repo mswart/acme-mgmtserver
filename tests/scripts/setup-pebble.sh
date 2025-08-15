@@ -10,11 +10,16 @@ cd ~/build/letsencrypt/pebble
 wget https://raw.githubusercontent.com/letsencrypt/pebble/master/test/certs/pebble.minica.pem
 wget https://raw.githubusercontent.com/letsencrypt/pebble/master/docker-compose.yml
 
-sed -i -e 's/ -strict//' -e '/environment:/a\      PEBBLE_WFE_NONCEREJECT: "0"' docker-compose.yml
+sed -i -e 's/ -strict//' docker-compose.yml
 
-docker-compose up -d
+yq -i '
+  .services.pebble.environment.PEBBLE_WFE_NONCEREJECT="0" |
+  .services.pebble.environment.PEBBLE_AUTHZREUSE="0"
+' docker-compose.yml
 
-pip install dnslib
+cat docker-compose.yml
+
+docker compose up -d
 
 echo 'waiting for pebble to be functional ...'
 
@@ -28,4 +33,4 @@ while true; do
   fi
 done
 
-docker-compose logs
+docker compose logs

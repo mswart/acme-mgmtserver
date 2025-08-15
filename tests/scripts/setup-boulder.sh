@@ -6,10 +6,10 @@ sed -i -e s/127.0.0.1:5002/${FAKE_DNS}:5002/ configs/integration-boulder.ini
 
 export GOPATH=~/build/go
 mkdir -p $GOPATH/src/github.com/letsencrypt/
-git clone git://github.com/letsencrypt/boulder.git $GOPATH/src/github.com/letsencrypt/boulder
+git clone https://github.com/letsencrypt/boulder.git $GOPATH/src/github.com/letsencrypt/boulder
 cd $GOPATH/src/github.com/letsencrypt/boulder
 
-docker-compose up -d
+docker compose up -d
 
 echo 'waiting for boulder to be functional ...'
 
@@ -18,9 +18,9 @@ while true; do
   sleep 1
   if [[ "$SECONDS" -gt 300 ]]; then
     echo 'setup took more than 5 minutes, give up  :-('
-    docker-compose logs
+    docker compose logs
     exit 3
   fi
 done
 
-docker-compose logs
+docker compose logs

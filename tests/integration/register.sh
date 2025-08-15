@@ -9,6 +9,6 @@ fi
 set -ex
 mkdir -p tests/integration/account tests/integration/log
 rm -f tests/integration/account/*
-bin/acme-register --gen-key --register --email integration-$1@ci$$.org --accept-terms-of-service='something' configs/integration-$1.ini
+acme-register --gen-key --register --email integration-$1@ci$$.org --accept-terms-of-service='something' configs/integration-$1.ini
 echo 'final check'
-bin/acme-register configs/integration-$1.ini
+acme-register configs/integration-$1.ini

@@ -63,7 +63,7 @@ currently a manuel process:
 
 .. code-block:: shell
 
-    > bin/acme-register --gen-key --register --email test@example.test --accept-terms-of-service config.ini
+    > acme-register --gen-key --register --email test@example.test --accept-terms-of-service config.ini
     asdf
     otto
 

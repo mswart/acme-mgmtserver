@@ -1,25 +1,19 @@
+import http.server
 import logging
-import sys
-import traceback
 import socket
 import socketserver
-import http.server
-
-import acme.errors
 
 from acmems import exceptions
 
 logger = logging.getLogger(__name__)
 
 
-class ThreadedACMEServerInet4(socketserver.ThreadingMixIn,
-                              http.server.HTTPServer):
+class ThreadedACMEServerInet4(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
     allow_reuse_address = True
 
 
-class ThreadedACMEServerInet6(socketserver.ThreadingMixIn,
-                              http.server.HTTPServer):
+class ThreadedACMEServerInet6(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
     allow_reuse_address = True
     address_family = socket.AF_INET6
@@ -36,20 +30,20 @@ ThreadedACMEServerByType = {
 
 
 class ACMEAbstractHandler(http.server.BaseHTTPRequestHandler):
-    server_version = 'AcmeManager/0.1'
+    server_version = "AcmeManager/0.1"
     manager = None
 
-    def send_data(self, data, content_type='text/plain', response_code=200):
-        """ Helper method to send data as HTTP response. The data are
-            transfered as :mimetype:`text/plain`.
+    def send_data(self, data, content_type="text/plain", response_code=200):
+        """Helper method to send data as HTTP response. The data are
+        transfered as :mimetype:`text/plain`.
 
-            :param str data: The text to send as :py:obj:`Python String <str>`.
-            :param int response_code: HTTP response code"""
+        :param str data: The text to send as :py:obj:`Python String <str>`.
+        :param int response_code: HTTP response code"""
         if type(data) is not bytes:
-            data = str(data).encode('utf-8')
+            data = str(data).encode("utf-8")
         self.send_response(response_code)
-        self.send_header('Content-type', content_type)
-        self.send_header('Content-Length', str(len(data)))
+        self.send_header("Content-type", content_type)
+        self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
 
@@ -60,15 +54,9 @@ class ACMEHTTPHandler(ACMEAbstractHandler):
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
-        """ Handles POST request (upload files). """
-        extra = {
-            'client_ip': self.client_address,
-            'path': self.path,
-            'endpoint': 'httpChallenges',
-            'host': self.headers.get('Host', '<unknown>')
-        }
-        host = self.headers['Host']
-        if host.endswith(':5002'):
+        """Handles POST request (upload files)."""
+        host = self.headers["Host"]
+        if host.endswith(":5002"):
             host = host[:-5]
         try:
             self.send_data(self.validator.response_for(host, self.path))
@@ -82,14 +70,14 @@ class ACMEMgmtHandler(ACMEAbstractHandler):
         return self.manager.config.auth
 
     def do_POST(self):
-        """ Handles POST request (upload files). """
+        """Handles POST request (upload files)."""
         extra = {
-            'client_ip': self.client_address,
-            'path': self.path,
-            'endpoint': 'acmems',
-            'host': self.headers.get('Host', '<unknown>')
+            "client_ip": self.client_address,
+            "path": self.path,
+            "endpoint": "acmems",
+            "host": self.headers.get("Host", "<unknown>"),
         }
-        if self.path != '/sign':
+        if self.path != "/sign":
             logger.warning('Unknown request URL "%s"', self.path, extra=extra)
             self.send_error(404)
             return
@@ -98,33 +86,36 @@ class ACMEMgmtHandler(ACMEAbstractHandler):
                 if not p.acceptable():
                     self.send_error(403)
                     return
-                logger.info('Sign request is valid (CN=%s, DNS=%s)',
-                            p.common_name, ', '.join(p.dns_names),
-                            extra=extra)
+                logger.info(
+                    "Sign request is valid (CN=%s, DNS=%s)",
+                    p.common_name,
+                    ", ".join(p.dns_names),
+                    extra=extra,
+                )
                 cached_certs = p.storage.from_cache(p.csrpem)
                 if cached_certs:
-                    logger.info('Redeliver already issued certificate',
-                                extra=extra)
+                    logger.info("Redeliver already issued certificate", extra=extra)
                     self.send_data(cached_certs)
                     return
                 order = self.manager.acquire_domain_validations(p.validator, p.csrpem)
                 certs = self.manager.issue_certificate(order)
                 p.storage.add_to_cache(p.csrpem, certs)
-                logger.info('New certificate issued', extra=extra)
+                logger.info("New certificate issued", extra=extra)
                 self.send_data(certs)
         except exceptions.PayloadToLarge as e:
-            logger.warning('Payload (CSR) to large (%s submitted > %s allowed)', e.size, e.allowed, extra=extra)
+            logger.warning(
+                "Payload (CSR) to large (%s submitted > %s allowed)", e.size, e.allowed, extra=extra
+            )
             self.send_error(413)
         except exceptions.PayloadInvalid:
-            logger.warning('Payload (CSR) could not be parsed', extra=extra)
+            logger.warning("Payload (CSR) could not be parsed", extra=extra)
             self.send_error(415)
         except exceptions.ChallengeFailed:
-            logger.warning('Unable to validate wanted domains!')
-            self.send_error(421, 'Misdirected Request: Validation failed')
+            logger.warning("Unable to validate wanted domains!")
+            self.send_error(421, "Misdirected Request: Validation failed")
         except exceptions.RateLimited:
-            logger.warning('Payload (CSR) could not be parsed', extra=extra)
-            self.send_error(429, 'Certificate declined due to rate limiting')
+            logger.warning("Payload (CSR) could not be parsed", extra=extra)
+            self.send_error(429, "Certificate declined due to rate limiting")
         except Exception:
-            logger.error('Unknown exception during request processing',
-                exc_info=True, extra=extra)
+            logger.error("Unknown exception during request processing", exc_info=True, extra=extra)
             self.send_error(500)
