@@ -12,7 +12,10 @@ authentication and autorisation itself.
 from fnmatch import fnmatch
 import hashlib
 import hmac
+from io import BufferedIOBase
 import logging
+from types import TracebackType
+from typing import TYPE_CHECKING, Protocol
 import warnings
 
 from cryptography import x509
@@ -20,6 +23,11 @@ from IPy import IP
 from OpenSSL import crypto
 
 from acmems import exceptions
+
+if TYPE_CHECKING:
+    from acmems.challenges import ChallengeImplementor
+    from acmems.config import Configurator
+    from acmems.storages import StorageImplementor
 
 logger = logging.getLogger(__name__)
 
@@ -29,18 +37,28 @@ class Authenticator:
     known authentication blocks.
     """
 
-    def __init__(self, config=None):
-        self.config = config
-        self.blocks = []
+    def __init__(self, config: "Configurator"):
+        self.config: "Configurator" = config
+        self.blocks: list[Block] = []
 
-    def parse_block(self, name, options):
+    def parse_block(self, name: str, options: list[tuple[str, str]]):
         self.blocks.append(Block(name, options, self.config))
 
-    def process(self, client_address, headers, rfile):
+    def process(
+        self, client_address: tuple[str, int], headers: dict[str, str], rfile: BufferedIOBase
+    ) -> "Processor":
         """Executes the request authentication by delicating it to the
         `.Processor`.
         """
         return Processor(self, client_address, headers, rfile)
+
+
+class Method(Protocol):
+    option_names: tuple[str]
+
+    def possible(self, processor: "Processor") -> bool: ...
+    def check(self, processor: "Processor") -> bool: ...
+    def parse(self, option: str, value: str) -> None: ...
 
 
 class IPAuthMethod:
@@ -48,17 +66,17 @@ class IPAuthMethod:
 
     option_names = ("ip",)
 
-    def __init__(self, ips=None):
+    def __init__(self, ips: list[IP] | None = None):
         self.ips = ips or []
 
-    def parse(self, option, value):
+    def parse(self, option: str, value: str):
         assert option == "ip"
         self.ips.append(IP(value))
 
-    def possible(self, processor):
+    def possible(self, processor: "Processor"):
         return self.check(processor)
 
-    def check(self, processor):
+    def check(self, processor: "Processor"):
         cip = IP(processor.client_address[0])
         for ip in self.ips:
             if cip in ip:
@@ -71,14 +89,16 @@ class HmacAuthMethod:
 
     option_names = ("hmac_type", "hmac_key")
 
-    def parse(self, option, value):
+    def parse(self, option: str, value: str):
         if option == "hmac_type":
             self.name = value
             self.hmac = getattr(hashlib, self.name)
         elif option == "hmac_key":
             self.key = value.encode("utf-8")
 
-    def parse_authentification_header(self, processor):
+    def parse_authentification_header(
+        self, processor: "Processor"
+    ) -> tuple[str | None, dict[str, str]]:
         if "Authentication" not in processor.headers:
             return (None, {})
         else:
@@ -86,7 +106,7 @@ class HmacAuthMethod:
             opts = {opt.split("=")[0]: opt.split("=", 1)[1] for opt in opts.split(", ")}
             return name, opts
 
-    def possible(self, processor):
+    def possible(self, processor: "Processor"):
         name, opts = self.parse_authentification_header(processor)
         if name != "hmac":
             return False
@@ -96,8 +116,8 @@ class HmacAuthMethod:
             return False
         return True
 
-    def check(self, processor):
-        name, opts = self.parse_authentification_header(processor)
+    def check(self, processor: "Processor"):
+        _name, opts = self.parse_authentification_header(processor)
         csrhash = hmac.new(self.key, processor.csrpem, digestmod=self.hmac).hexdigest()
         if hmac.compare_digest(csrhash, opts["hash"]):
             return True
@@ -110,14 +130,14 @@ class AllAuthMethod:
 
     option_names = ("all",)
 
-    def parse(self, option, value):
+    def parse(self, option: str, value: str):
         assert option == "all"
         assert value == "yes"
 
-    def possible(self, processor):
+    def possible(self, processor: "Processor"):
         return True
 
-    def check(self, processor):
+    def check(self, processor: "Processor"):
         return True
 
 
@@ -126,15 +146,16 @@ class Block:
     and list of allowed domains
     """
 
-    def __init__(self, name, options, config):
+    validator: "ChallengeImplementor"
+    storage: "StorageImplementor"
+
+    def __init__(self, name: str, options: list[tuple[str, str]], config: "Configurator"):
         self.name = name
-        self.methods = []
-        self.domain_matchers = []
-        self.validator = None
-        self.storage = None
+        self.methods: list[Method] = []
+        self.domain_matchers: list[str] = []
         self.parse(options, config)
 
-    def possible(self, processor):
+    def possible(self, processor: "Processor"):
         if not self.domain_matchers:
             return False
         for method in self.methods:
@@ -143,7 +164,7 @@ class Block:
                 return False
         return True
 
-    def check(self, processor):
+    def check(self, processor: "Processor"):
         for method in self.methods:
             if not method.check(processor):
                 return False
@@ -156,8 +177,10 @@ class Block:
                 return False
         return True
 
-    def parse(self, options, config):
-        unused_methods = [IPAuthMethod, AllAuthMethod, HmacAuthMethod]
+    def parse(self, options: list[tuple[str, str]], config: "Configurator"):
+        unused_methods: list[type[Method]] = [IPAuthMethod, AllAuthMethod, HmacAuthMethod]
+        self.validator = config.default_validator
+        self.storage = config.default_storage
         for option, value in options:
             if option == "domain":
                 self.domain_matchers.append(value)
@@ -202,26 +225,6 @@ class Block:
                 unused_methods.remove(method)
                 self.methods.append(method())
                 self.methods[-1].parse(option, value)
-        if self.validator is None:
-            self.validator = config.default_validator
-            if self.validator is False:
-                from acmems.config import UnknownVerificationError
-
-                raise UnknownVerificationError(
-                    'auth "{}" does not define a validator and the default one is disabled'.format(
-                        self.name
-                    )
-                )
-        if self.storage is None:
-            self.storage = config.default_storage
-            if self.storage is False:
-                from acmems.config import UnknownStorageError
-
-                raise UnknownStorageError(
-                    'auth "{}" does not define a storage and the default one is disabled'.format(
-                        self.name
-                    )
-                )
 
 
 class Processor:
@@ -229,7 +232,19 @@ class Processor:
     reads and parse CSR
     """
 
-    def __init__(self, auth, client_address, headers, rfile):
+    storage: "StorageImplementor"
+    validator: "ChallengeImplementor"
+    dns_names: list[str]
+    common_name: list[str]
+    csrpem: bytes
+
+    def __init__(
+        self,
+        auth: Authenticator,
+        client_address: tuple[str, int],
+        headers: dict[str, str],
+        rfile: BufferedIOBase,
+    ):
         self.auth = auth
         self.client_address = client_address
         self.headers = headers
@@ -238,7 +253,12 @@ class Processor:
     def __enter__(self):
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(
+        self,
+        type: type[BaseException] | None,
+        value: BaseException | None,
+        exc_tb: TracebackType | None,
+    ):
         pass
 
     def acceptable(self):
@@ -250,10 +270,8 @@ class Processor:
         :param callable get_body: function to read in body (CSR)
         :return bool: whether request should be accepted
         """
-        self.validator = None
-        self.storage = None
         # 1. precheck
-        possible_blocks = []
+        possible_blocks: list[Block] = []
         for block in self.auth.blocks:
             if block.possible(self):
                 possible_blocks.append(block)

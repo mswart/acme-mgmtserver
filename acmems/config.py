@@ -8,6 +8,7 @@ options are directly instanciated.
 """
 
 import importlib
+import io
 import logging
 import logging.config
 import logging.handlers
@@ -15,9 +16,14 @@ import os.path
 import re
 import socket
 import sys
+from typing import TYPE_CHECKING, Any, Literal
 import warnings
 
 from acmems.auth import Authenticator
+
+if TYPE_CHECKING:
+    from acmems.challenges import ChallengeImplementor
+    from acmems.storages import StorageImplementor
 
 
 class ConfigurationError(Exception):
@@ -37,7 +43,7 @@ class UnknownStorageError(ConfigurationError):
 
 
 class SingletonOptionRedifined(ConfigurationError):
-    def __init__(self, section, option, old, new):
+    def __init__(self, section: str, option: str, old: Any, new: Any):
         self.section = section
         self.option = option
         self.old = old
@@ -66,11 +72,11 @@ class UnusedSectionWarning(ConfigurationWarning):
 
 
 class Configurator:
-    def __init__(self, *configs):
-        self.validators = {}
-        self.default_validator = None
-        self.storages = {}
-        self.default_storage = None
+    def __init__(self, *configs: io.TextIOBase):
+        self.validators: "dict[str, ChallengeImplementor]" = {}
+        self.default_validator_name: str | Literal[False] | None = None
+        self.storages: "dict[str, StorageImplementor]" = {}
+        self.default_storage_name: str | Literal[False] | None = None
         self._max_size = None
 
         self.auth = Authenticator(self)
@@ -89,17 +95,17 @@ class Configurator:
     def max_size(self):
         return self._max_size or 4096
 
-    def parse(self, config):
-        config = self.read_data(config)
-        self.parse_setup_config(config.pop("setup", {}))
-        self.parse_logging_config(config.pop("logging", {}))
-        self.parse_account_config(config.pop("account"))
-        self.parser_mgmt_config(config.pop("mgmt"))
+    def parse(self, config: io.TextIOBase):
+        parsed_config = self.read_data(config)
+        self.parse_setup_config(parsed_config.pop("setup", []))
+        self.parse_logging_config(parsed_config.pop("logging", []))
+        self.parse_account_config(parsed_config.pop("account", []))
+        self.parser_mgmt_config(parsed_config.pop("mgmt"))
         special_group_re = re.compile(
             '^(?P<type>(auth|verification|storage)) (?P<opener>"?)(?P<name>.+)(?P=opener)$'
         )
-        auth_blocks = []
-        for group, options in config.items():
+        auth_blocks: list[tuple[str, list[tuple[str, str]]]] = []
+        for group, options in parsed_config.items():
             match = special_group_re.match(group)
             if match:
                 if match.group("type") == "auth":
@@ -121,7 +127,7 @@ class Configurator:
             self.auth.parse_block(name, options)
 
     @staticmethod
-    def read_data(config):
+    def read_data(config: io.TextIOBase) -> dict[str, list[tuple[str, str]]]:
         """Reads the given file name. It assumes that the file has a INI file
         syntax. The parser returns the data without comments and fill
         characters. It supports multiple option with the same name per
@@ -130,10 +136,10 @@ class Configurator:
         :param str filename: path to INI file
         :return: a dictionary - the key is the section name value, the
             option is a array of (option name, option value) tuples"""
-        sections = {}
+        sections: dict[str, list[tuple[str, str]]] = {}
         with config as f:
-            section = None
-            options = None
+            section: str | None = None
+            options: list[tuple[str, str]] = []
             for line in f:
                 line = line.strip()
                 # ignore comments:
@@ -161,7 +167,7 @@ class Configurator:
                 sections[section] = options
         return sections
 
-    def parse_setup_config(self, config):
+    def parse_setup_config(self, config: list[tuple[str, str]]):
         for option, value in config:
             if option == "include-path":
                 sys.argv.insert(0, value)
@@ -174,7 +180,7 @@ class Configurator:
                     stacklevel=2,
                 )
 
-    def parse_logging_config(self, config):
+    def parse_logging_config(self, config: list[tuple[str, str]]):
         level = None
         destination = None
         format = None
@@ -203,6 +209,7 @@ class Configurator:
                 )
             logging.config.fileConfig(config_file)
         else:
+            opts: dict[str, Any] = {}
             if destination == "syslog":
                 opts = {"handlers": [logging.handlers.SysLogHandler("/dev/log")]}
             elif destination == "stdout":
@@ -211,12 +218,12 @@ class Configurator:
                 opts = {"handlers": [logging.StreamHandler(sys.stderr)]}
             elif destination == "journalctl":
                 try:
-                    import systemd.journal
+                    import systemd.journal  # type: ignore  # noqa: PGH003
                 except ImportError:
                     raise ConfigurationError(
                         "systemd python module required to log to journalctl"
                     ) from None
-                opts = {"handlers": [systemd.journal.JournalHandler()]}
+                opts = {"handlers": [systemd.journal.JournalHandler()]}  # type: ignore  # noqa: PGH003
             elif destination:  # normal file:
                 opts = {"filename": destination}
             else:  # reuse loggings default destination (stderr)
@@ -225,7 +232,7 @@ class Configurator:
                 opts["format"] = format
             logging.basicConfig(level=level or "WARNING", **opts)
 
-    def parse_account_config(self, config):
+    def parse_account_config(self, config: list[tuple[str, str]]):
         self.acme_server = None
         for option, value in config:
             if option == "acme-server":
@@ -245,8 +252,8 @@ class Configurator:
         if self.acme_server is None:
             self.acme_server = "https://acme-staging.api.letsencrypt.org/directory"
 
-    def parser_mgmt_config(self, config):
-        self.mgmt_listeners = None
+    def parser_mgmt_config(self, config: list[tuple[str, str]]):
+        self.mgmt_listeners: list[Any] = []
         for option, value in config:
             if option == "max-size":
                 suffixes = {"k": 1024, "m": 1024 * 1024}
@@ -258,17 +265,15 @@ class Configurator:
                     self._max_size = int(value)
             elif option == "default-verification":
                 if value == "":
-                    self.default_validator = False
+                    self.default_validator_name = False
                 else:
-                    self.default_validator = value.strip()
+                    self.default_validator_name = value.strip()
             elif option == "default-storage":
                 if value == "":
-                    self.default_storage = False
+                    self.default_storage_name = False
                 else:
-                    self.default_storage = value.strip()
+                    self.default_storage_name = value.strip()
             elif option == "listener":
-                if self.mgmt_listeners is None:
-                    self.mgmt_listeners = []
                 if value == "":  # disable listener
                     continue
                 if ":" not in value:
@@ -283,12 +288,12 @@ class Configurator:
                     UnusedOptionWarning,
                     stacklevel=2,
                 )
-        if self.mgmt_listeners is None:
+        if self.mgmt_listeners == []:
             self.mgmt_listeners = socket.getaddrinfo(
                 "127.0.0.1", 1313, proto=socket.IPPROTO_TCP
             ) + socket.getaddrinfo("::1", 1313, proto=socket.IPPROTO_TCP)
 
-    def parse_verification_group(self, name, options):
+    def parse_verification_group(self, name: str, options: list[tuple[str, str]]):
         option, value = options.pop(0)
         if option != "type":
             raise ConfigurationError("A verification must start with the type value!")
@@ -297,19 +302,19 @@ class Configurator:
         self.validators[name] = setup(value, name, options)
 
     def setup_default_validator(self):
-        if self.default_validator is False:  # default validator disabled
+        if self.default_validator_name is False:  # default validator disabled
             return
-        if self.default_validator:  # defined
-            self.default_validator = self.validators[self.default_validator]
+        if self.default_validator_name:  # defined
+            self.default_validator = self.validators[self.default_validator_name]
             return
         if len(self.validators) == 1:  # we use the only defined validator as default
             self.default_validator = next(iter(self.validators.values()))
         else:  # define a default http storage
             from acmems.challenges import setup
 
-            self.default_validator = self.validators["http"] = setup("http01", "http", ())
+            self.default_validator = self.validators["http"] = setup("http01", "http", [])
 
-    def parse_storage_group(self, name, options):
+    def parse_storage_group(self, name: str, options: list[tuple[str, str]]):
         option, value = options.pop(0)
         if option != "type":
             raise ConfigurationError("A storage must start with the type value!")
@@ -318,13 +323,13 @@ class Configurator:
         self.storages[name] = setup(value, name, options)
 
     def setup_default_storage(self):
-        if self.default_storage is False:  # default storage disabled
+        if self.default_storage_name is False:  # default storage disabled
             return
-        if self.default_storage:
-            self.default_storage = self.storages[self.default_storage]
+        if self.default_storage_name:
+            self.default_storage = self.storages[self.default_storage_name]
         if len(self.storages) == 1:
             self.default_storage = next(iter(self.storages.values()))
         else:
             from acmems.storages import setup
 
-            self.default_storage = self.storages["none"] = setup("none", "none", ())
+            self.default_storage = self.storages["none"] = setup("none", "none", [])

@@ -2,8 +2,14 @@ import http.server
 import logging
 import socket
 import socketserver
+from typing import TYPE_CHECKING, Any
 
 from acmems import exceptions
+from acmems.auth import Authenticator
+from acmems.manager import ACMEManager
+
+if TYPE_CHECKING:
+    from acmems.challenges import HttpChallengeImplementor
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +29,7 @@ class ThreadedACMEServerInet6(socketserver.ThreadingMixIn, http.server.HTTPServe
         http.server.HTTPServer.server_bind(self)
 
 
-ThreadedACMEServerByType = {
+ThreadedACMEServerByType: dict[socket.AddressFamily, type[http.server.HTTPServer]] = {
     socket.AF_INET: ThreadedACMEServerInet4,
     socket.AF_INET6: ThreadedACMEServerInet6,
 }
@@ -31,9 +37,11 @@ ThreadedACMEServerByType = {
 
 class ACMEAbstractHandler(http.server.BaseHTTPRequestHandler):
     server_version = "AcmeManager/0.1"
-    manager = None
+    manager: ACMEManager
 
-    def send_data(self, data, content_type="text/plain", response_code=200):
+    def send_data(
+        self, data: bytes | str, content_type: str = "text/plain", response_code: int = 200
+    ):
         """Helper method to send data as HTTP response. The data are
         transfered as :mimetype:`text/plain`.
 
@@ -49,13 +57,13 @@ class ACMEAbstractHandler(http.server.BaseHTTPRequestHandler):
 
 
 class ACMEHTTPHandler(ACMEAbstractHandler):
-    def __init__(self, validator, *args, **kwargs):
+    def __init__(self, validator: "HttpChallengeImplementor", *args: Any, **kwargs: Any):
         self.validator = validator
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
         """Handles POST request (upload files)."""
-        host = self.headers["Host"]
+        host: str = self.headers["Host"]
         if host.endswith(":5002"):
             host = host[:-5]
         try:
@@ -66,12 +74,12 @@ class ACMEHTTPHandler(ACMEAbstractHandler):
 
 class ACMEMgmtHandler(ACMEAbstractHandler):
     @property
-    def auth(self):
+    def auth(self) -> Authenticator:
         return self.manager.config.auth
 
     def do_POST(self):
         """Handles POST request (upload files)."""
-        extra = {
+        extra: dict[str, Any] = {
             "client_ip": self.client_address,
             "path": self.path,
             "endpoint": "acmems",
