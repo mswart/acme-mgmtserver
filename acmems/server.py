@@ -2,12 +2,14 @@ import http.server
 import logging
 import socket
 import socketserver
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from acmems import exceptions
 from acmems.auth import Authenticator
-from acmems.challenges import HttpChallengeImplementor
 from acmems.manager import ACMEManager
+
+if TYPE_CHECKING:
+    from acmems.challenges import HttpChallengeImplementor
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +57,7 @@ class ACMEAbstractHandler(http.server.BaseHTTPRequestHandler):
 
 
 class ACMEHTTPHandler(ACMEAbstractHandler):
-    def __init__(self, validator: HttpChallengeImplementor, *args: Any, **kwargs: Any):
+    def __init__(self, validator: "HttpChallengeImplementor", *args: Any, **kwargs: Any):
         self.validator = validator
         super().__init__(*args, **kwargs)
 

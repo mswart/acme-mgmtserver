@@ -2,9 +2,7 @@ from datetime import datetime, timedelta
 import logging
 import os.path
 import sys
-from typing import Any
-
-from acmems.challenges import ChallengeImplementor
+from typing import TYPE_CHECKING, Any
 
 if sys.version_info >= (3, 11):
     from datetime import UTC
@@ -23,6 +21,9 @@ import josepy.util
 
 from acmems import exceptions
 from acmems.config import Configurator
+
+if TYPE_CHECKING:
+    from acmems.challenges import ChallengeImplementor
 
 logger = logging.getLogger(__name__)
 
@@ -189,7 +190,7 @@ class ACMEManager:
     # 2. the real part (handling authorizations + certificates)
     # ---------------------------------------------------------
 
-    def acquire_domain_validations(self, validator: ChallengeImplementor, csrpem: bytes):
+    def acquire_domain_validations(self, validator: "ChallengeImplementor", csrpem: bytes):
         """requests for all given domains domain validations
         If we have cached a valid challenge return this.
         Expired challenges will clear automatically; invalided challenges

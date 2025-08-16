@@ -23,11 +23,11 @@ from IPy import IP
 from OpenSSL import crypto
 
 from acmems import exceptions
-from acmems.storages import StorageImplementor
 
 if TYPE_CHECKING:
     from acmems.challenges import ChallengeImplementor
     from acmems.config import Configurator
+    from acmems.storages import StorageImplementor
 
 logger = logging.getLogger(__name__)
 
@@ -146,12 +146,13 @@ class Block:
     and list of allowed domains
     """
 
+    validator: "ChallengeImplementor"
+    storage: "StorageImplementor"
+
     def __init__(self, name: str, options: list[tuple[str, str]], config: "Configurator"):
         self.name = name
         self.methods: list[Method] = []
         self.domain_matchers: list[str] = []
-        self.validator: ChallengeImplementor
-        self.storage: StorageImplementor
         self.parse(options, config)
 
     def possible(self, processor: "Processor"):
@@ -231,7 +232,7 @@ class Processor:
     reads and parse CSR
     """
 
-    storage: StorageImplementor
+    storage: "StorageImplementor"
     validator: "ChallengeImplementor"
     dns_names: list[str]
     common_name: list[str]

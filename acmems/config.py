@@ -16,12 +16,14 @@ import os.path
 import re
 import socket
 import sys
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 import warnings
 
 from acmems.auth import Authenticator
-from acmems.challenges import ChallengeImplementor
-from acmems.storages import StorageImplementor
+
+if TYPE_CHECKING:
+    from acmems.challenges import ChallengeImplementor
+    from acmems.storages import StorageImplementor
 
 
 class ConfigurationError(Exception):
@@ -71,9 +73,9 @@ class UnusedSectionWarning(ConfigurationWarning):
 
 class Configurator:
     def __init__(self, *configs: io.TextIOBase):
-        self.validators: dict[str, ChallengeImplementor] = {}
+        self.validators: "dict[str, ChallengeImplementor]" = {}
         self.default_validator_name: str | Literal[False] | None = None
-        self.storages: dict[str, StorageImplementor] = {}
+        self.storages: "dict[str, StorageImplementor]" = {}
         self.default_storage_name: str | Literal[False] | None = None
         self._max_size = None
 
