@@ -59,7 +59,7 @@ def main():
 
     finished = 0
     try:
-        for thread, service in zip(list(mgmt_threads), list(mgmt_services)):
+        for thread, service in zip(list(mgmt_threads), list(mgmt_services), strict=True):
             thread.join()
             service.shutdown()
             finished += 1

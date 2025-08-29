@@ -1,7 +1,7 @@
 [project]
 name = "acme-mgmtserver"
 version = "0.5.0a1"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = "GPL-3.0-or-later"
 dependencies = [
   "acme>=0.21.0",
@@ -28,7 +28,6 @@ classifiers = [
   # that you indicate whether you support Python 2, Python 3 or both.
   'Programming Language :: Python :: 3 :: Only',
   'Programming Language :: Python :: 3',
-  'Programming Language :: Python :: 3.9',
   'Programming Language :: Python :: 3.10',
   'Programming Language :: Python :: 3.11',
   'Programming Language :: Python :: 3.12',
