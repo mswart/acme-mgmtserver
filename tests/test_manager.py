@@ -1,17 +1,23 @@
+from pathlib import Path
 import random
 import shutil
+from typing import cast
 
 import acme
+import acme.client
+import acme.messages
+from cryptography.hazmat.primitives.asymmetric.types import CertificateIssuerPrivateKeyTypes
 import josepy.jwk
 import pytest
 
-from acmems import exceptions
+from acmems import challenges, exceptions
+from tests.conftest import ACMEBackend
 from tests.helpers import M, gencsrpem, randomize_domains
 
 ### load private key
 
 
-def test_key_load():
+def test_key_load() -> None:
     m = M("""[account]
         dir = tests/support/valid
         [mgmt]""")
@@ -23,7 +29,7 @@ def test_key_load():
     )
 
 
-def test_no_key_file():
+def test_no_key_file() -> None:
     m = M("""[account]
         dir = tests/support/notexisting
         [mgmt]""")
@@ -35,23 +41,23 @@ def test_no_key_file():
 ### create private key
 
 
-def test_create_key(tmpdir):
+def test_create_key(tmp_path: Path) -> None:
     m = M(
-        """[account]
-        dir = {}
-        [mgmt]""".format(tmpdir)
+        f"""[account]
+        dir = {tmp_path}
+        [mgmt]"""
     )
     m.create_private_key()
     assert type(m.key) is josepy.jwk.JWKRSA
 
 
-def test_override_key(tmpdir):
+def test_override_key(tmp_path: Path) -> None:
     m = M(
-        """[account]
-        dir = {}
-        [mgmt]""".format(tmpdir)
+        f"""[account]
+        dir = {tmp_path}
+        [mgmt]"""
     )
-    shutil.copyfile("tests/support/valid/account.pem", str(tmpdir.join("account.pem")))
+    shutil.copyfile("tests/support/valid/account.pem", str(tmp_path / "account.pem"))
     with pytest.raises(exceptions.AccountError) as e:
         m.create_private_key()
     assert "force" in str(e.value)
@@ -65,44 +71,46 @@ def test_override_key(tmpdir):
 
 
 ### register
-def randomized_email():
+def randomized_email() -> str:
     return "acme@pytest{}.org".format(random.randint(0, 2**16))  # noqa: S311
 
 
-def test_register_with_general_tos(backend, tmpdir):
+def test_register_with_general_tos(backend: ACMEBackend, tmp_path: Path) -> None:
     m = M(
-        """[account]
-        dir = {}
-        acme-server = {}
-        [mgmt]""".format(tmpdir, backend.endpoint)
+        f"""[account]
+        dir = {tmp_path}
+        acme-server = {backend.endpoint}
+        [mgmt]"""
     )
     m.create_private_key()
     m.init_client()
-    assert m.tos_agreement_required().startswith(backend.tos_prefix)
+    tos_agreement = m.tos_agreement_required()
+    assert tos_agreement and tos_agreement.startswith(backend.tos_prefix)
     m.register(emails=[randomized_email()], tos_agreement=True)
     assert not m.tos_agreement_required()
 
 
-def test_register_with_specific_tos(backend, tmpdir):
+def test_register_with_specific_tos(backend: ACMEBackend, tmp_path: Path) -> None:
     m = M(
-        """[account]
-        dir = {}
-        acme-server = {}
-        [mgmt]""".format(tmpdir, backend.endpoint)
+        f"""[account]
+        dir = {tmp_path}
+        acme-server = {backend.endpoint}
+        [mgmt]"""
     )
     m.create_private_key()
     m.init_client()
-    assert m.tos_agreement_required().startswith(backend.tos_prefix)
-    m.register(emails=[randomized_email()], tos_agreement=m.tos_agreement_required())
+    tos_agreement = m.tos_agreement_required()
+    assert tos_agreement and tos_agreement.startswith(backend.tos_prefix)
+    m.register(emails=[randomized_email()], tos_agreement=tos_agreement)
     assert not m.tos_agreement_required()
 
 
-def test_register_without_tos_agreement(backend, tmpdir):
+def test_register_without_tos_agreement(backend: ACMEBackend, tmp_path: Path) -> None:
     m = M(
-        """[account]
-        dir = {}
-        acme-server = {}
-        [mgmt]""".format(tmpdir, backend.endpoint)
+        f"""[account]
+        dir = {tmp_path}
+        acme-server = {backend.endpoint}
+        [mgmt]"""
     )
     m.create_private_key()
     m.init_client()
@@ -111,12 +119,12 @@ def test_register_without_tos_agreement(backend, tmpdir):
         m.register(emails=[randomized_email()], tos_agreement=False)
 
 
-def test_register_ignoring_tos_agreement(backend, tmpdir):
+def test_register_ignoring_tos_agreement(backend: ACMEBackend, tmp_path: Path) -> None:
     m = M(
-        """[account]
-        dir = {}
-        acme-server = {}
-        [mgmt]""".format(tmpdir, backend.endpoint)
+        f"""[account]
+        dir = {tmp_path}
+        acme-server = {backend.endpoint}
+        [mgmt]"""
     )
     m.create_private_key()
     m.init_client()
@@ -128,12 +136,12 @@ def test_register_ignoring_tos_agreement(backend, tmpdir):
 ### refresh registration
 
 
-def test_refresh_registration_for_unknown_key(backend):
+def test_refresh_registration_for_unknown_key(backend: ACMEBackend) -> None:
     m = M(
-        """[account]
+        f"""[account]
         dir = tests/support/valid
-        acme-server = {}
-        [mgmt]""".format(backend.endpoint)
+        acme-server = {backend.endpoint}
+        [mgmt]"""
     )
     m.load_private_key()
     assert type(m.key) is josepy.jwk.JWKRSA
@@ -147,18 +155,27 @@ def test_refresh_registration_for_unknown_key(backend):
 ### domain verificateion
 
 
-def test_auto_domain_verification(backend, http_server, ckey):
+def test_auto_domain_verification(
+    backend: ACMEBackend,
+    http_server: challenges.HttpChallengeImplementor,
+    ckey: CertificateIssuerPrivateKeyTypes,
+) -> None:
     m = backend.registered_manager(validator=http_server)
     domains = randomize_domains("www", "mail", suffix=".example{}.com")
     csr = gencsrpem(domains, ckey)
     orderr = m.acquire_domain_validations(http_server, csr)
-    assert len(orderr.authorizations) == 2
-    assert orderr.authorizations[0].body.status.name == "valid"
-    assert orderr.authorizations[1].body.status.name == "valid"
-    assert sorted([v.body.identifier.value for v in orderr.authorizations]) == sorted(domains)
+    authorizations = cast(tuple[acme.messages.AuthorizationResource, ...], orderr.authorizations)
+    assert len(authorizations) == 2
+    assert authorizations[0].body.status.name == "valid"
+    assert authorizations[1].body.status.name == "valid"
+    assert sorted([v.body.identifier.value for v in authorizations]) == sorted(domains)
 
 
-def test_invalid_domain_verification(backend, http_server, ckey):
+def test_invalid_domain_verification(
+    backend: ACMEBackend,
+    http_server: challenges.HttpChallengeImplementor,
+    ckey: CertificateIssuerPrivateKeyTypes,
+) -> None:
     if backend.name == "pebble":
         return pytest.skip("Rate limiting is not implemented in pebble!")
     m = backend.registered_manager(validator=http_server)
@@ -171,17 +188,26 @@ def test_invalid_domain_verification(backend, http_server, ckey):
 ### certificate creation
 
 
-def test_certificate_creation(backend, http_server, ckey):
+def test_certificate_creation(
+    backend: ACMEBackend,
+    http_server: challenges.HttpChallengeImplementor,
+    ckey: CertificateIssuerPrivateKeyTypes,
+) -> None:
     domains = randomize_domains("www", "mail", suffix=".example{}.org")
     csr = gencsrpem(domains, ckey)
     m = backend.registered_manager(validator=http_server)
     orderr = m.acquire_domain_validations(http_server, csr)
-    assert len(orderr.authorizations) == 2
+    authorizations = cast(tuple[acme.messages.AuthorizationResource, ...], orderr.authorizations)
+    assert len(authorizations) == 2
     certs = m.issue_certificate(orderr)
     assert len(certs.split("\n\n")) == 2
 
 
-def test_rate_limit_on_certificate_creation(backend, http_server, ckey):
+def test_rate_limit_on_certificate_creation(
+    backend: ACMEBackend,
+    http_server: challenges.HttpChallengeImplementor,
+    ckey: CertificateIssuerPrivateKeyTypes,
+) -> None:
     if backend.name == "pebble":
         return pytest.skip("Rate limiting is not implemented in pebble!")
     domains = randomize_domains("httpexample-rate{}.org")
@@ -189,12 +215,18 @@ def test_rate_limit_on_certificate_creation(backend, http_server, ckey):
     m = backend.registered_manager(validator=http_server)
     for _ in range(5):
         orderr = m.acquire_domain_validations(http_server, csr)
-        assert len(orderr.authorizations) == 1
+        authorizations = cast(
+            tuple[acme.messages.AuthorizationResource, ...], orderr.authorizations
+        )
+        assert len(authorizations) == 1
         certs = m.issue_certificate(orderr)
         assert "-----BEGIN CERTIFICATE-----" in certs
         assert "-----END CERTIFICATE-----" in certs
     with pytest.raises(exceptions.RateLimited) as e:
         orderr = m.acquire_domain_validations(http_server, csr)
-        assert len(orderr.authorizations) == 1
+        authorizations = cast(
+            tuple[acme.messages.AuthorizationResource, ...], orderr.authorizations
+        )
+        assert len(authorizations) == 1
         m.issue_certificate(orderr)
     assert domains[0] in str(e.value)

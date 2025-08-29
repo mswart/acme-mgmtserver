@@ -1,49 +1,84 @@
+from abc import abstractmethod
+import http.server
 import json
 import os
 import socket
 from threading import Event, Thread
+from typing import Any, Literal, Sequence, cast, overload
 import urllib.request
 import warnings
 
+import acme.challenges
 import acme.client
+import acme.messages
+import josepy.jwk
 
 from acmems.config import ConfigurationError, UnusedOptionWarning
 from acmems.server import ACMEHTTPHandler, ThreadedACMEServerByType
 
+ListenerInfo = tuple[
+    socket.AddressFamily,
+    socket.SocketKind,
+    int,
+    str,
+    tuple[str, int] | tuple[str, int, int, int] | tuple[int, bytes],
+]
+
 
 class ChallengeImplementor:
-    def __init__(self, type, name, options):
+    def __init__(self, type: str, name: str, options: Sequence[tuple[str, str]]) -> None:
         self.type = type
         self.name = name
         self.parse(options)
 
+    @abstractmethod
+    def parse(self, options: Sequence[tuple[str, str]]) -> None: ...
+
+    @abstractmethod
+    def start(self) -> Any: ...  # noqa: ANN401 (depends on implementation)
+
+    @abstractmethod
+    def new_authorization(
+        self,
+        authz: acme.messages.Authorization,
+        client: acme.client.ClientV2,
+        key: josepy.jwk.JWK,
+        domain: str,
+    ) -> bool: ...
+
 
 class HttpChallengeImplementor(ChallengeImplementor):
-    def parse(self, options):
-        self.listeners = None
+    responses: dict[str, dict[str, tuple[str, Event]]]
+
+    def parse(self, options: Sequence[tuple[str, str]]) -> None:
+        listeners: list[ListenerInfo] = []
+        listener_disabled = False
         for option, value in options:
             if option == "listener":
-                if self.listeners is None:
-                    self.listeners = []
                 if value == "":  # disable listener
+                    listener_disabled = True
                     continue
                 if ":" not in value:
                     raise ConfigurationError("unix socket are currenlty not supported as listeners")
                 host, port = value.rsplit(":", 1)
                 if host[0] == "[" and host[-1] == "]":
                     host = host[1:-1]
-                self.listeners += socket.getaddrinfo(host, int(port), proto=socket.IPPROTO_TCP)
-        if self.listeners is None:
+                listeners += socket.getaddrinfo(host, int(port), proto=socket.IPPROTO_TCP)
+        if listener_disabled:
+            self.listeners = []
+        elif listeners:
+            self.listeners = listeners
+        else:
             self.listeners = socket.getaddrinfo(
                 "0.0.0.0",  # noqa: S104
                 1380,
                 proto=socket.IPPROTO_TCP,
             ) + socket.getaddrinfo("::", 1380, proto=socket.IPPROTO_TCP)
 
-    def start(self):
-        services = []
+    def start(self) -> list[tuple[http.server.HTTPServer, Thread]]:
+        services: list[tuple[http.server.HTTPServer, Thread]] = []
 
-        def bound_handler(*args, **kwargs):
+        def bound_handler(*args: Any, **kwargs: Any) -> ACMEHTTPHandler:  # noqa: ANN401 (we just delegate)
             return ACMEHTTPHandler(self, *args, **kwargs)
 
         for http_listen in self.listeners:
@@ -58,7 +93,13 @@ class HttpChallengeImplementor(ChallengeImplementor):
         self.responses = {}
         return services
 
-    def new_authorization(self, authz, client, key, domain):
+    def new_authorization(
+        self,
+        authz: acme.messages.Authorization,
+        client: acme.client.ClientV2,
+        key: josepy.jwk.JWK,
+        domain: str,
+    ) -> bool:
         for challenger in authz.challenges:
             challenge = challenger.chall
             if isinstance(challenge, acme.challenges.HTTP01):
@@ -76,7 +117,7 @@ class HttpChallengeImplementor(ChallengeImplementor):
         else:
             return False
 
-    def response_for(self, host, path):
+    def response_for(self, host: str, path: str) -> str:
         """request a response for a given request
 
         :param str host: Hostname of the request
@@ -91,11 +132,17 @@ class HttpChallengeImplementor(ChallengeImplementor):
 class DnsChallengeImplementor(ChallengeImplementor):
     """WIP"""
 
-    def start(self):
+    def start(self) -> None:
         pass
 
-    def new_authorization(self, authz, client, key, domain):
-        for challenger in authz.challenges:
+    def new_authorization(
+        self,
+        authz: acme.messages.Authorization,
+        client: acme.client.ClientV2,
+        key: josepy.jwk.JWK,
+        domain: str,
+    ) -> bool:
+        for challenger in cast(tuple[acme.messages.ChallengeBody, ...], authz.challenges):
             challenge = challenger.chall
             if isinstance(challenge, acme.challenges.DNS01):
                 response, validation = challenge.response_and_validation(key)
@@ -109,9 +156,13 @@ class DnsChallengeImplementor(ChallengeImplementor):
         else:
             return False
 
+    @abstractmethod
+    def add_entry(self, entry: str, value: str) -> None:
+        pass
+
 
 class DnsChallengeServerImplementor(DnsChallengeImplementor):
-    def parse(self, options):
+    def parse(self, options: Sequence[tuple[str, str]]) -> None:
         self.listeners = None
         for option, value in options:
             if option == "listener":
@@ -130,15 +181,15 @@ class DnsChallengeServerImplementor(DnsChallengeImplementor):
         if len(self.listeners) > 1:
             raise ConfigurationError("For now only one listener is supported!")
 
-    def start(self):
+    def start(self) -> None:
         import dnslib.server
 
-        self.responses = {}
+        self.responses: "dict[tuple[dnslib.DNSLabel, dnslib.CLASS, dnslib.QTYPE], dnslib.DNSRecord]" = {}
         for dns_listen in self.listeners:
             server = dnslib.server.DNSServer(self, port=dns_listen[4][1], address=dns_listen[4][0])
             server.start_thread()
 
-    def resolve(self, request, handler):
+    def resolve(self, request: Any, handler: Any) -> None:  # noqa: ANN401
         import dnslib
 
         question = request.q
@@ -161,7 +212,7 @@ class DnsChallengeServerImplementor(DnsChallengeImplementor):
             reply.header.rcode = dnslib.RCODE.NXDOMAIN
         return reply
 
-    def add_entry(self, entry, value):
+    def add_entry(self, entry: str, value: str) -> None:
         import dnslib
 
         self.responses[(dnslib.DNSLabel(entry), dnslib.CLASS.IN, dnslib.QTYPE.TXT)] = dnslib.TXT(
@@ -172,15 +223,14 @@ class DnsChallengeServerImplementor(DnsChallengeImplementor):
 class DnsChallengeBoulderImplementor(DnsChallengeImplementor):
     """WIP"""
 
-    def parse(self, options):
-        self.set_txt_url = None
+    def parse(self, options: Sequence[tuple[str, str]]) -> None:
+        url: str | None = None
         for option, value in options:
             if option == "set-txt_url":
-                self.set_txt_url = value
-        if self.set_txt_url is None:
-            self.set_txt_url = "http://localhost:8055/set-txt"
+                url = value
+        self.set_txt_url = url or "http://localhost:8055/set-txt"
 
-    def add_entry(self, entry, value):
+    def add_entry(self, entry: str, value: str) -> None:
         task = json.dumps({"host": entry, "value": value}).encode("utf-8")
 
         response = urllib.request.urlopen(self.set_txt_url, task)
@@ -190,8 +240,8 @@ class DnsChallengeBoulderImplementor(DnsChallengeImplementor):
 class DnsChallengeDnsUpdateImplementor(DnsChallengeImplementor):
     """WIP"""
 
-    def parse(self, options):
-        self.dns_servers = None
+    def parse(self, options: Sequence[tuple[str, str]]) -> None:
+        self.dns_servers: list[str] | None = None
         self.ttl = None
         self.timeout = None
         for option, value in options:
@@ -216,7 +266,7 @@ class DnsChallengeDnsUpdateImplementor(DnsChallengeImplementor):
         if self.timeout is None:
             self.timeout = 5
 
-    def add_entry(self, entry, value):
+    def add_entry(self, entry: str, value: str) -> None:
         import dns
         import dns.query
         import dns.update
@@ -237,12 +287,12 @@ class DnsChallengeDnsUpdateImplementor(DnsChallengeImplementor):
         except Exception as e:
             raise ValueError("could not update {}: {}".format(e.__class__.__name__, e)) from None
 
-    def select_zone(self, entry):
+    def select_zone(self, entry: str) -> str:
         parts = entry.split(".")
         return ".".join(parts[-3:])
 
 
-implementors = {
+implementors: dict[str, type[ChallengeImplementor]] = {
     "http01": HttpChallengeImplementor,
     "dns01-boulder": DnsChallengeBoulderImplementor,
     "dns01-server": DnsChallengeServerImplementor,
@@ -250,7 +300,27 @@ implementors = {
 }
 
 
-def setup(type, name, options):
+@overload
+def setup(
+    type: Literal["http01"], name: str, options: Sequence[tuple[str, str]]
+) -> HttpChallengeImplementor: ...
+@overload
+def setup(
+    type: Literal["dns01-boulder"], name: str, options: Sequence[tuple[str, str]]
+) -> DnsChallengeBoulderImplementor: ...
+@overload
+def setup(
+    type: Literal["dns01-server"], name: str, options: Sequence[tuple[str, str]]
+) -> DnsChallengeServerImplementor: ...
+@overload
+def setup(
+    type: Literal["dns01-dnsUpdate"], name: str, options: Sequence[tuple[str, str]]
+) -> DnsChallengeDnsUpdateImplementor: ...
+@overload
+def setup(type: str, name: str, options: Sequence[tuple[str, str]]) -> ChallengeImplementor: ...
+
+
+def setup(type: str, name: str, options: Sequence[tuple[str, str]]) -> ChallengeImplementor:
     try:
         return implementors[type](type, name, options)
     except KeyError:

@@ -8,7 +8,7 @@ from .exceptions import NeedToAgreeToTOS
 from .manager import ACMEManager
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(add_help=False, description="Register a the ACME server")
     group = parser.add_argument_group(
         "general options",

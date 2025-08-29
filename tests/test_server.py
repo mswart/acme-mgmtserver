@@ -2,13 +2,16 @@ import hashlib
 import hmac
 import http.client
 import os
+from typing import Any
 import urllib.error
 import urllib.request
 
+from cryptography.hazmat.primitives.asymmetric.types import CertificateIssuerPrivateKeyTypes
 from OpenSSL import crypto
 import pytest
 
-from acmems import server
+from acmems import challenges, server
+from tests.conftest import ACMEBackend, MgmtServer
 from tests.helpers import MA, M, extract_alt_names, gencsrpem, randomize_domains
 
 
@@ -16,11 +19,11 @@ class BindingHTTPHandler(urllib.request.AbstractHTTPHandler):
     # must be in front
     handler_order = 10
 
-    def __init__(self, source_address, **kwargs):
+    def __init__(self, source_address: tuple[str, int], **kwargs: Any) -> None:  # noqa: ANN401 (we delegate params)
         super().__init__(**kwargs)
         self.source_address = source_address
 
-    def http_open(self, req):
+    def http_open(self, req: urllib.request.Request) -> http.client.HTTPResponse:
         return self.do_open(http.client.HTTPConnection, req, source_address=self.source_address)
 
     http_request = urllib.request.AbstractHTTPHandler.do_request_
@@ -33,7 +36,7 @@ open127001 = urllib.request.build_opener(BindingHTTPHandler(("127.0.0.1", 0)))
 #### http server
 
 
-def test_for_404_for_unknown_requests(http_server):
+def test_for_404_for_unknown_requests(http_server: challenges.HttpChallengeImplementor) -> None:
     server.ACMEAbstractHandler.manager = M(
         """[account]
         dir = tests/support/valid/
@@ -50,7 +53,9 @@ def test_for_404_for_unknown_requests(http_server):
 #### mgmt server
 
 
-def test_mgmt_for_404_for_unknown_requests(mgmt_server, ckey):
+def test_mgmt_for_404_for_unknown_requests(
+    mgmt_server: MgmtServer, ckey: CertificateIssuerPrivateKeyTypes
+) -> None:
     server.ACMEAbstractHandler.manager = M(
         """[account]
         dir = tests/support/valid/
@@ -63,7 +68,11 @@ def test_mgmt_for_404_for_unknown_requests(mgmt_server, ckey):
     assert e.value.code == 404
 
 
-def test_mgmt_reject_sign_with_wrong_ip(http_server, mgmt_server, ckey):
+def test_mgmt_reject_sign_with_wrong_ip(
+    http_server: challenges.HttpChallengeImplementor,
+    mgmt_server: MgmtServer,
+    ckey: CertificateIssuerPrivateKeyTypes,
+) -> None:
     server.ACMEAbstractHandler.manager = M("""
         [account]
         dir = tests/support/valid
@@ -79,7 +88,11 @@ def test_mgmt_reject_sign_with_wrong_ip(http_server, mgmt_server, ckey):
     assert e.value.code == 403
 
 
-def test_mgmt_reject_correct_ip_but_missing_sign(http_server, mgmt_server, ckey):
+def test_mgmt_reject_correct_ip_but_missing_sign(
+    http_server: challenges.HttpChallengeImplementor,
+    mgmt_server: MgmtServer,
+    ckey: CertificateIssuerPrivateKeyTypes,
+) -> None:
     server.ACMEAbstractHandler.manager = M("""
         [account]
         dir = tests/support/valid
@@ -97,7 +110,11 @@ def test_mgmt_reject_correct_ip_but_missing_sign(http_server, mgmt_server, ckey)
     assert e.value.code == 403
 
 
-def test_mgmt_reject_correct_ip_but_wrong_hmac_key(http_server, mgmt_server, ckey):
+def test_mgmt_reject_correct_ip_but_wrong_hmac_key(
+    http_server: challenges.HttpChallengeImplementor,
+    mgmt_server: MgmtServer,
+    ckey: CertificateIssuerPrivateKeyTypes,
+) -> None:
     server.ACMEAbstractHandler.manager = M("""
         [account]
         dir = tests/support/valid
@@ -120,7 +137,11 @@ def test_mgmt_reject_correct_ip_but_wrong_hmac_key(http_server, mgmt_server, cke
     assert e.value.code == 403
 
 
-def test_mgmt_reject_correct_ip_but_wrong_hmac_type(http_server, mgmt_server, ckey):
+def test_mgmt_reject_correct_ip_but_wrong_hmac_type(
+    http_server: challenges.HttpChallengeImplementor,
+    mgmt_server: MgmtServer,
+    ckey: CertificateIssuerPrivateKeyTypes,
+) -> None:
     server.ACMEAbstractHandler.manager = M("""
         [account]
         dir = tests/support/valid
@@ -143,7 +164,12 @@ def test_mgmt_reject_correct_ip_but_wrong_hmac_type(http_server, mgmt_server, ck
     assert e.value.code == 403
 
 
-def test_mgmt_reject_too_long_csr(backend, http_server, mgmt_server, ckey):
+def test_mgmt_reject_too_long_csr(
+    backend: ACMEBackend,
+    http_server: challenges.HttpChallengeImplementor,
+    mgmt_server: MgmtServer,
+    ckey: CertificateIssuerPrivateKeyTypes,
+) -> None:
     server.ACMEAbstractHandler.manager = M(
         backend.registered_account
         + """
@@ -169,7 +195,12 @@ def test_mgmt_reject_too_long_csr(backend, http_server, mgmt_server, ckey):
     assert e.value.code == 413
 
 
-def test_mgmt_reject_invalid_csr(backend, http_server, mgmt_server, ckey):
+def test_mgmt_reject_invalid_csr(
+    backend: ACMEBackend,
+    http_server: challenges.HttpChallengeImplementor,
+    mgmt_server: MgmtServer,
+    ckey: CertificateIssuerPrivateKeyTypes,
+) -> None:
     server.ACMEAbstractHandler.manager = M(
         backend.registered_account
         + """
@@ -194,7 +225,12 @@ def test_mgmt_reject_invalid_csr(backend, http_server, mgmt_server, ckey):
     assert e.value.code == 415
 
 
-def test_mgmt_complete_multiple_domains(backend, http_server, mgmt_server, ckey):
+def test_mgmt_complete_multiple_domains(
+    backend: ACMEBackend,
+    http_server: challenges.HttpChallengeImplementor,
+    mgmt_server: MgmtServer,
+    ckey: CertificateIssuerPrivateKeyTypes,
+) -> None:
     server.ACMEAbstractHandler.manager = M(
         backend.registered_account
         + """
@@ -224,7 +260,12 @@ def test_mgmt_complete_multiple_domains(backend, http_server, mgmt_server, ckey)
     assert sorted(extract_alt_names(x509[0])) == sorted(domains)
 
 
-def test_mgmt_complete_one_domain(backend, http_server, mgmt_server, ckey):
+def test_mgmt_complete_one_domain(
+    backend: ACMEBackend,
+    http_server: challenges.HttpChallengeImplementor,
+    mgmt_server: MgmtServer,
+    ckey: CertificateIssuerPrivateKeyTypes,
+) -> None:
     server.ACMEAbstractHandler.manager = MA(backend.registered_account, validator=http_server)
     domains = randomize_domains("debug.fullexample{}.org")
     csr = gencsrpem(domains, ckey)
@@ -240,7 +281,12 @@ def test_mgmt_complete_one_domain(backend, http_server, mgmt_server, ckey):
     assert sorted(extract_alt_names(x509[0])) == sorted(domains)
 
 
-def test_mgmt_complete_one_domain_by_dns(backend, dnsboulder_validator, mgmt_server, ckey):
+def test_mgmt_complete_one_domain_by_dns(
+    backend: ACMEBackend,
+    dnsboulder_validator: challenges.DnsChallengeBoulderImplementor,
+    mgmt_server: MgmtServer,
+    ckey: CertificateIssuerPrivateKeyTypes,
+) -> None:
     server.ACMEAbstractHandler.manager = M(
         backend.registered_account
         + """
@@ -267,7 +313,12 @@ def test_mgmt_complete_one_domain_by_dns(backend, dnsboulder_validator, mgmt_ser
     assert sorted(extract_alt_names(x509[0])) == sorted(domains)
 
 
-def test_mgmt_complete_wildcard_domain(backend, dnsboulder_validator, mgmt_server, ckey):
+def test_mgmt_complete_wildcard_domain(
+    backend: ACMEBackend,
+    dnsboulder_validator: challenges.DnsChallengeBoulderImplementor,
+    mgmt_server: MgmtServer,
+    ckey: CertificateIssuerPrivateKeyTypes,
+) -> None:
     server.ACMEAbstractHandler.manager = M(
         backend.registered_account
         + """
@@ -294,7 +345,12 @@ def test_mgmt_complete_wildcard_domain(backend, dnsboulder_validator, mgmt_serve
     assert sorted(extract_alt_names(x509[0])) == sorted(domains)
 
 
-def test_mgmt_for_certificate_error(backend, http_server, mgmt_server, ckey):
+def test_mgmt_for_certificate_error(
+    backend: ACMEBackend,
+    http_server: challenges.HttpChallengeImplementor,
+    mgmt_server: MgmtServer,
+    ckey: CertificateIssuerPrivateKeyTypes,
+) -> None:
     backend.registered_manager(validator=http_server)
     domains = randomize_domains("error.fullexample{}.org")
     csr = gencsrpem(domains, ckey)
@@ -304,7 +360,12 @@ def test_mgmt_for_certificate_error(backend, http_server, mgmt_server, ckey):
     assert e.value.code == 421
 
 
-def test_complete_rate_limit_on_certificate_creation(backend, http_server, mgmt_server, ckey):
+def test_complete_rate_limit_on_certificate_creation(
+    backend: ACMEBackend,
+    http_server: challenges.HttpChallengeImplementor,
+    mgmt_server: MgmtServer,
+    ckey: CertificateIssuerPrivateKeyTypes,
+) -> None:
     if backend.name == "pebble":
         return pytest.skip("Rate limiting is not implemented in pebble!")
     backend.registered_manager(validator=http_server)
