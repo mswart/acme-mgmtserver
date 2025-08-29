@@ -26,7 +26,6 @@ dependencies = [
     { name = "acme" },
     { name = "ipy" },
     { name = "josepy" },
-    { name = "pyopenssl" },
 ]
 
 [package.optional-dependencies]
@@ -52,7 +51,6 @@ requires-dist = [
     { name = "ipy" },
     { name = "josepy" },
     { name = "py3dns", marker = "extra == 'dns01'" },
-    { name = "pyopenssl" },
     { name = "systemd", marker = "extra == 'systemd'" },
 ]
 provides-extras = ["systemd", "dns01"]

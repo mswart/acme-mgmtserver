@@ -19,9 +19,9 @@ from typing import TYPE_CHECKING, Literal, Protocol, Sequence, cast
 import warnings
 
 from cryptography import x509
+from cryptography.x509.extensions import Extension, SubjectAlternativeName
 from cryptography.x509.oid import ExtensionOID, NameOID
 from IPy import IP
-from OpenSSL import crypto
 
 from acmems import exceptions
 
@@ -261,7 +261,7 @@ class Processor:
     storage: "StorageImplementor"
     validator: "ChallengeImplementor"
     dns_names: list[str]
-    common_name: str
+    common_name: str | bytes
     csrpem: bytes
 
     def __init__(
@@ -306,7 +306,7 @@ class Processor:
         # 2. process CSR
         try:
             self.read_and_parse_csr()
-        except crypto.Error:
+        except ValueError:
             raise exceptions.PayloadInvalid() from None
         self.accepted_block = None
         # 3. final check
@@ -322,13 +322,15 @@ class Processor:
         if self.auth.config and content_length > self.auth.config.max_size:
             raise exceptions.PayloadToLarge(size=content_length, allowed=self.auth.config.max_size)
         self.csrpem = self.rfile.read(content_length)
-        self.csr = crypto.load_certificate_request(crypto.FILETYPE_PEM, self.csrpem)
-        csr = self.csr.to_cryptography()
-        self.common_name = csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+        self.csr = x509.load_pem_x509_csr(self.csrpem)
+        self.common_name = self.csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
         try:
-            extension = csr.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
-            self.dns_names = cast(list[str], extension.value.get_values_for_type(x509.DNSName))
+            extension = cast(
+                Extension[SubjectAlternativeName],
+                self.csr.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME),
+            )
+            self.dns_names = extension.value.get_values_for_type(x509.DNSName)
         except x509.ExtensionNotFound:
             self.dns_names = []
-        if self.common_name not in self.dns_names:
+        if self.common_name not in self.dns_names and isinstance(self.common_name, str):
             self.dns_names.insert(0, self.common_name)

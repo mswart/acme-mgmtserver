@@ -3,12 +3,7 @@ name = "acme-mgmtserver"
 version = "0.5.0a1"
 requires-python = ">=3.10"
 license = "GPL-3.0-or-later"
-dependencies = [
-  "acme>=0.21.0",
-  "josepy",
-  "PyOpenSSL",    # >=2017.1.0",  # to_cryptography (>=2017.1.0)
-  "IPy",
-]
+dependencies = ["acme>=0.21.0", "josepy", "IPy"]
 description = "Basic Python Server to execute ACME on behalf of dumb clients"
 readme = "README.md"
 authors = [{ name = "Malte Swart", email = "mswart@devtation.de" }]
