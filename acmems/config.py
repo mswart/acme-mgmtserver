@@ -87,6 +87,7 @@ class Configurator:
         self.storages: "dict[str, StorageImplementor]" = {}
         self.default_storage: "StorageImplementor | None" = None
         self.default_storage_name: str | Literal[False] | None = None
+        self.accept_terms_of_service: Literal[True] | list[str] | None = None
         self._max_size = None
 
         self.auth = Authenticator(self)
@@ -253,13 +254,29 @@ class Configurator:
                 acme_server = value
             elif option == "dir":
                 self.account_dir = value
+            elif option == "accept-terms-of-service":
+                if value.lower() in ("true", "yes"):
+                    if self.accept_terms_of_service:
+                        raise ConfigurationError(
+                            "Either accept terms of services fully (yes) or specifies urls to accept"
+                        )
+                    self.accept_terms_of_service = True
+                else:
+                    if self.accept_terms_of_service is True:
+                        raise ConfigurationError(
+                            "Either accept terms of services fully (yes) or specifies urls to accept"
+                        )
+                    elif isinstance(self.accept_terms_of_service, list):
+                        self.accept_terms_of_service.append(value)
+                    else:
+                        self.accept_terms_of_service = [value]
             else:
                 warnings.warn(
                     "Option unknown [{}]{} = {}".format("account", option, value),
                     UnusedOptionWarning,
                     stacklevel=2,
                 )
-        self.acme_server = acme_server or "https://acme-staging.api.letsencrypt.org/directory"
+        self.acme_server = acme_server or "https://acme-staging-v02.api.letsencrypt.org/directory"
 
     def parser_mgmt_config(self, config: Sequence[tuple[str, str]]) -> None:
         self.mgmt_listeners: list[ListenerInfo] = []

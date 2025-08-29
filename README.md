@@ -78,11 +78,17 @@ The server and all its dependencies are available on PyPi and can be installed b
 
 The configuration is a basic INI file, with multiple key support. The main parts are the blocks to define the account directory, listen information for the http interfaces and the configuration which client is allowed to request certificates for which domains.
 
-```bash
+```ini
 [account]
 # the ACME server to talk to; I recommend to first test
 # against the staging system
-acme-server = https://acme-staging.api.letsencrypt.org/directory
+acme-server = https://acme-staging-v02.api.letsencrypt.org/directory
+# Accept Terms of Service
+# Either in general:
+accept-terms-of-service = yes # or true
+# or limit the specific terms to accept
+# accept-terms-of-service = https://letsencrypt.org/documents/LE-SA-v1.5-February-24-2025.pdf
+
 # account dir; contains
 #   account.pem - private key to identify against the ACME server
 #   registration.json - the registration resource as JSON dump
@@ -162,30 +168,13 @@ domain=mail.example.com
 
 ## Registration
 
-The executable `acme-register` supports to register at the ACME server. This will not be done automatically, you have to call it manually before the first use of the server itself.
-
-Please have a look at the help output for further instructions `acme-register --help`.
-
-A registration could look like this:
-
-```bash
-> acme-register --gen-key --register --email test@example.org configs/integration.ini
-Generate private key ... done
-Initialize ACME client ... done
-Register ... done
-You need to accept the terms of service at http://127.0.0.1:4001/terms/v1
-> acme-register --accept-terms-of-service=http://127.0.0.1:4001/terms/v1 configs/integration.ini
-Load private key ... done
-Initialize ACME client ... done
-Refreshing current registration ... done
-You need to accept the terms of service at http://127.0.0.1:4001/terms/v1
-Accepting ToS at http://127.0.0.1:4001/terms/v1 ... done
-```
+On startup, the server checks whether an registered account already exists.
+Otherwise, it will be registered automatically.
 
 
 ## Example Client Usage
 
-```
+```bash
 # generate domain private key (once!)
 openssl genrsa 4096 > domain.key
 
