@@ -17,7 +17,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization as pem_serialization
 from cryptography.hazmat.primitives.asymmetric.types import CertificateIssuerPrivateKeyTypes
-from cryptography.x509 import CertificateSigningRequest
+from cryptography.x509 import Certificate, CertificateSigningRequest
 from cryptography.x509.extensions import Extension, SubjectAlternativeName
 from cryptography.x509.oid import ExtensionOID, NameOID
 
@@ -101,11 +101,11 @@ def signcsr(
     )
 
 
-def extract_alt_names(csr: CertificateSigningRequest) -> list[str]:
+def extract_alt_names(cert: Certificate) -> list[str]:
     try:
         extension = cast(
             Extension[SubjectAlternativeName],
-            csr.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME),
+            cert.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME),
         )
         return extension.value.get_values_for_type(x509.DNSName)
     except x509.ExtensionNotFound:
