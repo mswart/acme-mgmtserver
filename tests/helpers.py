@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import io
 import random
 import sys
-from typing import Sequence
+from typing import Sequence, cast
 import uuid
 
 if sys.version_info >= (3, 11):
@@ -17,8 +17,9 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization as pem_serialization
 from cryptography.hazmat.primitives.asymmetric.types import CertificateIssuerPrivateKeyTypes
+from cryptography.x509 import CertificateSigningRequest
+from cryptography.x509.extensions import Extension, SubjectAlternativeName
 from cryptography.x509.oid import ExtensionOID, NameOID
-import OpenSSL
 
 from acmems import config, manager
 from acmems.challenges import ChallengeImplementor
@@ -66,9 +67,11 @@ def gencsrpem(domains: Sequence[str], key: CertificateIssuerPrivateKeyTypes) -> 
     return csr.public_bytes(pem_serialization.Encoding.PEM)
 
 
-def gencsr(domains: Sequence[str], key: CertificateIssuerPrivateKeyTypes) -> OpenSSL.crypto.X509Req:  # pyright: ignore[reportDeprecated]
+def gencsr(
+    domains: Sequence[str], key: CertificateIssuerPrivateKeyTypes
+) -> CertificateSigningRequest:
     pem = gencsrpem(domains, key)
-    return OpenSSL.crypto.load_certificate_request(OpenSSL.crypto.FILETYPE_PEM, pem)
+    return x509.load_pem_x509_csr(pem)
 
 
 def signcsr(
@@ -98,10 +101,11 @@ def signcsr(
     )
 
 
-def extract_alt_names(obj: OpenSSL.crypto.X509Req) -> list[str]:  # pyright: ignore[reportDeprecated]
+def extract_alt_names(csr: CertificateSigningRequest) -> list[str]:
     try:
-        extension = obj.to_cryptography().extensions.get_extension_for_oid(
-            ExtensionOID.SUBJECT_ALTERNATIVE_NAME
+        extension = cast(
+            Extension[SubjectAlternativeName],
+            csr.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME),
         )
         return extension.value.get_values_for_type(x509.DNSName)
     except x509.ExtensionNotFound:

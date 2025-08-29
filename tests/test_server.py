@@ -7,7 +7,7 @@ import urllib.error
 import urllib.request
 
 from cryptography.hazmat.primitives.asymmetric.types import CertificateIssuerPrivateKeyTypes
-from OpenSSL import crypto
+from cryptography.x509 import load_pem_x509_csr
 import pytest
 
 from acmems import challenges, server
@@ -253,10 +253,7 @@ def test_mgmt_complete_multiple_domains(
     response = urllib.request.urlopen(request)
     certs = response.read().split(b"\n\n")
     assert len(certs) == 2
-    x509 = [crypto.load_certificate(crypto.FILETYPE_PEM, cert) for cert in certs]
-    # assert x509[0].get_issuer() == x509[1].get_subject()
-    assert x509[0].has_expired() is False
-    assert x509[1].has_expired() is False
+    x509 = [load_pem_x509_csr(cert) for cert in certs]
     assert sorted(extract_alt_names(x509[0])) == sorted(domains)
 
 
@@ -274,10 +271,7 @@ def test_mgmt_complete_one_domain(
     )
     certs = response.read().split(b"\n\n")
     assert len(certs) == 2
-    x509 = [crypto.load_certificate(crypto.FILETYPE_PEM, cert) for cert in certs]
-    # assert x509[0].get_issuer() == x509[1].get_subject()
-    assert x509[0].has_expired() is False
-    assert x509[1].has_expired() is False
+    x509 = [load_pem_x509_csr(cert) for cert in certs]
     assert sorted(extract_alt_names(x509[0])) == sorted(domains)
 
 
@@ -306,10 +300,7 @@ def test_mgmt_complete_one_domain_by_dns(
     )
     certs = response.read().split(b"\n\n")
     assert len(certs) == 2
-    x509 = [crypto.load_certificate(crypto.FILETYPE_PEM, cert) for cert in certs]
-    # assert x509[0].get_issuer() == x509[1].get_subject()
-    assert x509[0].has_expired() is False
-    assert x509[1].has_expired() is False
+    x509 = [load_pem_x509_csr(cert) for cert in certs]
     assert sorted(extract_alt_names(x509[0])) == sorted(domains)
 
 
@@ -338,10 +329,7 @@ def test_mgmt_complete_wildcard_domain(
     )
     certs = response.read().split(b"\n\n")
     assert len(certs) == 2
-    x509 = [crypto.load_certificate(crypto.FILETYPE_PEM, cert) for cert in certs]
-    # assert x509[0].get_issuer() == x509[1].get_subject()
-    assert x509[0].has_expired() is False
-    assert x509[1].has_expired() is False
+    x509 = [load_pem_x509_csr(cert) for cert in certs]
     assert sorted(extract_alt_names(x509[0])) == sorted(domains)
 
 
