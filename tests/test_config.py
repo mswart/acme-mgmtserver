@@ -47,7 +47,7 @@ acme-server = https://acme.example.org/directory
 def test_default_acme_server_address() -> None:
     c = parse("""[account]
         [mgmt]""")
-    assert c.acme_server == "https://acme-staging.api.letsencrypt.org/directory"
+    assert c.acme_server == "https://acme-staging-v02.api.letsencrypt.org/directory"
 
 
 def test_error_on_multiple_acme_server_addresses() -> None:

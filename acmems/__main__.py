@@ -29,7 +29,7 @@ def main() -> None:
 
     config = Configurator(*args.configs)
 
-    print("load account and init acme client ... ", end="")
+    print("load account and init acme client ... ", end="", flush=True)
     ACMEAbstractHandler.manager = ACMEManager(config)
     print("done")
 

@@ -59,9 +59,15 @@ class ACMEManager:
         :raises acmems.exceptions.NeedToAgreeToTOS: terms of service are
             not accepted - cannot operate
         """
-        self.load_private_key()
+        if self.account_key_created():
+            self.load_private_key()
+        else:
+            self.create_private_key()
         self.init_client()
-        self.refresh_registration()
+        if self.account_registered():
+            self.refresh_registration()
+        else:
+            self.register()
 
     def load_private_key(self) -> None:
         """load our private key / the key to identify ourself against
@@ -80,6 +86,9 @@ class ACMEManager:
         # TODO - handle IOError; keyfile without valid key
         self.key = josepy.jwk.JWKRSA(key=josepy.util.ComparableRSAKey(key))
 
+    def account_key_created(self) -> bool:
+        return os.path.isfile(self.config.keyfile)
+
     def create_private_key(self, force: bool = False, key_size: int = 4096) -> None:
         """create new private key to be used for identify ourself against
         the ACME server
@@ -92,11 +101,12 @@ class ACMEManager:
         :raises acmems.exceptions.AccountError: account dir not found
             or private key will not be overriden (force is `False`).
         """
-        if os.path.isfile(self.config.keyfile) and not force:
+        if self.account_key_created() and not force:
             raise exceptions.AccountError("Existing key is only override if I am forced to")
         key = rsa.generate_private_key(
             public_exponent=65537, key_size=key_size, backend=default_backend()
         )
+        os.makedirs(self.config.account_dir, exist_ok=True)
         with open(self.config.keyfile, "wb") as f:
             f.write(
                 key.private_bytes(
@@ -123,12 +133,24 @@ class ACMEManager:
         self.client = acme.client.ClientV2(directory, net)
 
     def register(
-        self, emails: list[str] | None = None, tos_agreement: str | Literal[True] | None = None
+        self,
+        emails: list[str] | None = None,
+        tos_agreement: list[str] | bool | str | None = None,
     ) -> None:
+        agreed_tos = tos_agreement or self.config.accept_terms_of_service
+        if agreed_tos is True:
+            tos_accepted = True
+        elif isinstance(agreed_tos, str):
+            tos_accepted = self.directory.meta.terms_of_service == agreed_tos
+        elif isinstance(agreed_tos, list):
+            tos_accepted = self.directory.meta.terms_of_service in agreed_tos
+        else:
+            tos_accepted = False
+
         resource = acme.messages.NewRegistration(
             key=self.key.public_key(),
             contact=tuple(["mailto:{}".format(mail) for mail in emails or []]),
-            terms_of_service_agreed=bool(tos_agreement),
+            terms_of_service_agreed=tos_accepted,
         )
         try:
             self.registration = self.client.new_account(resource)
@@ -159,6 +181,9 @@ class ACMEManager:
         assert url is not False
         self.registration.body.update(terms_of_service_agreed=True)
         self.dump_registration()
+
+    def account_registered(self) -> bool:
+        return os.path.isfile(self.config.registration_file)
 
     def dump_registration(self) -> None:
         with open(self.config.registration_file, "w") as f:

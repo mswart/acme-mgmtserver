@@ -90,7 +90,7 @@ def test_register_with_general_tos(backend: ACMEBackend, tmp_path: Path) -> None
     assert not m.tos_agreement_required()
 
 
-def test_register_with_specific_tos(backend: ACMEBackend, tmp_path: Path) -> None:
+def test_register_with_specific_term_of_service(backend: ACMEBackend, tmp_path: Path) -> None:
     m = M(
         f"""[account]
         dir = {tmp_path}
@@ -101,7 +101,24 @@ def test_register_with_specific_tos(backend: ACMEBackend, tmp_path: Path) -> Non
     m.init_client()
     tos_agreement = m.tos_agreement_required()
     assert tos_agreement and tos_agreement.startswith(backend.tos_prefix)
-    m.register(emails=[randomized_email()], tos_agreement=tos_agreement)
+    m.register(emails=[randomized_email()], tos_agreement=[tos_agreement])
+    assert not m.tos_agreement_required()
+
+
+def test_register_with_specific_terms_of_service(backend: ACMEBackend, tmp_path: Path) -> None:
+    m = M(
+        f"""[account]
+        dir = {tmp_path}
+        acme-server = {backend.endpoint}
+        [mgmt]"""
+    )
+    m.create_private_key()
+    m.init_client()
+    tos_agreement = m.tos_agreement_required()
+    assert tos_agreement and tos_agreement.startswith(backend.tos_prefix)
+    m.register(
+        emails=[randomized_email()], tos_agreement=[tos_agreement, "http://example.org/terms.pdf"]
+    )
     assert not m.tos_agreement_required()
 
 
@@ -131,6 +148,20 @@ def test_register_ignoring_tos_agreement(backend: ACMEBackend, tmp_path: Path) -
     assert m.tos_agreement_required()
     with pytest.raises(exceptions.NeedToAgreeToTOS):
         m.register(emails=[randomized_email()], tos_agreement=None)
+
+
+def test_register_different_tos_agreement(backend: ACMEBackend, tmp_path: Path) -> None:
+    m = M(
+        f"""[account]
+        dir = {tmp_path}
+        acme-server = {backend.endpoint}
+        [mgmt]"""
+    )
+    m.create_private_key()
+    m.init_client()
+    assert m.tos_agreement_required()
+    with pytest.raises(exceptions.NeedToAgreeToTOS):
+        m.register(emails=[randomized_email()], tos_agreement=["http://example.org/terms.pdf"])
 
 
 ### refresh registration

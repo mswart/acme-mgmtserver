@@ -81,8 +81,6 @@ jobs:
         run: tests/scripts/setup-${{ matrix.acme-server }}.sh
       - name: 'Running pytest'
         run: tests/scripts/pytest-${{ matrix.acme-server }}.sh
-      - name: 'Integration: registration'
-        run: tests/integration/register.sh ${{ matrix.acme-server }}
       - name: 'Integration: generate certificate'
         run: tests/integration/gencert.py ${{ matrix.acme-server }}
       - name: "Display script logs"
